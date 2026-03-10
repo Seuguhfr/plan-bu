@@ -1,0 +1,16 @@
+name = "affluence"
+main = "worker.js"
+compatibility_date = "2024-03-04"
+
+[[r2_buckets]]
+binding = "MAP_BUCKET"
+bucket_name = "seat-map-bucket"
+
+[[kv_namespaces]]
+binding = "SEATS_KV"
+id = "3febad8172634d7cb826bfaaa39d014f"
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true

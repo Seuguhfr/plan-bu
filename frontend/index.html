@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" type="image/png" href="https://i.goopics.net/mghcvl.png">
+    <title>Plan BU Saint-Serge</title>
+    <style>
+        :root{--primary:#2563eb;--bg:#f8fafc;--seat-unknown:#cbd5e1;--seat-busy:#64748b;--seat-free:rgba(16,185,129,0.8);--seat-border:rgba(255,255,255,0.4);--plug-color:#3b82f6;--light-glow:rgba(253,224,71,0.4);--tooltip-bg:rgba(15,23,42,0.9)}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);margin:0;padding:0;height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;overscroll-behavior:none}.header{flex-shrink:0;z-index:50;background:#fff;padding:12px 30px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.05);padding-top:max(12px,env(safe-area-inset-top))}.title{font-weight:700;color:#1e293b;font-size:20px;letter-spacing:-.5px}.reload-btn{background:#fff;border:1px solid #cbd5e1;padding:6px 16px;border-radius:6px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;color:#475569;transition:all .2s}.reload-btn:hover{background:#f1f5f9;border-color:#94a3b8}.reload-btn:active{transform:translateY(1px)}.controls{flex-shrink:0;background:#fff;padding:15px 30px;border-bottom:1px solid #e2e8f0;display:grid;grid-template-columns:200px 1fr 200px;gap:30px;align-items:center;z-index:40;user-select:none;-webkit-user-select:none}.date-sel{padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:14px;width:100%;outline:0;cursor:pointer}.slider-container{display:flex;flex-direction:column;gap:5px}.time-label{text-align:center;font-weight:600;color:var(--primary);font-size:14px;margin-bottom:5px}.slider-wrap{position:relative;height:30px;cursor:pointer;touch-action:none}.track{position:absolute;top:50%;width:100%;height:6px;background:#e2e8f0;border-radius:3px;transform:translateY(-50%)}.fill{position:absolute;top:50%;height:6px;background:var(--primary);transform:translateY(-50%);border-radius:3px}.thumb{position:absolute;top:50%;width:20px;height:20px;background:#fff;border:2px solid var(--primary);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .1s;z-index:10}.thumb:hover{transform:translate(-50%,-50%) scale(1.2)}.now-marker{position:absolute;top:-5px;bottom:-5px;width:2px;background:red;z-index:5;pointer-events:none;display:none}.now-label{position:absolute;top:-12px;left:-50%;transform:translateX(-25%);font-size:10px;color:red;font-weight:700}.legend{display:flex;gap:15px;font-size:12px;color:#64748b;justify-content:flex-end}.leg-item{display:flex;align-items:center;gap:6px}.swatch{width:14px;height:14px;border-radius:3px}.sw-plug{border:2px solid var(--plug-color)}.sw-light{background:#fef08a;border:1px solid #eab308}.sw-unknown{background:var(--seat-unknown)}.sw-busy{background:var(--seat-busy)}.sw-free{background:var(--seat-free)}.viewport{flex:1;position:relative;background:#e2e8f0;overflow:auto;padding:40px}.map-container{position:relative;width:1600px;margin:0 auto;background:#fff;box-shadow:0 4px 6px -1px rgba(0,0,0,.1);transform-origin:0 0}.map-img{width:100%;display:block;pointer-events:none;user-select:none}.map-box{position:absolute;display:grid;gap:2px;pointer-events:none;border-radius:3px}.map-box.has-plug{border:3px solid var(--plug-color)}.map-box.has-light{background:var(--light-glow);box-shadow:0 0 20px var(--light-glow)}.seat{background:var(--seat-unknown);border:1px solid var(--seat-border);border-radius:2px;pointer-events:auto;transition:transform .2s ease,background .2s ease;position:relative;cursor:pointer;user-select:none;-webkit-user-select:none}@keyframes sharp-wave{0%,20%,100%{background-color:#cbd5e1}10%{background-color:#fff}}.seat.skeleton{background-color:#cbd5e1;border-color:rgba(255,255,255,.2);will-change:background-color;animation:sharp-wave 1.5s infinite linear;animation-delay:calc(((100 - var(--x-pos)) + (100 - var(--y-pos))) * .008s)}.seat.is-busy{background:var(--seat-busy)}.seat.is-free{background:var(--seat-free);box-shadow:inset 0 0 4px rgba(255,255,255,.4);z-index:2}@media (hover:hover){.seat:hover{transform:scale(1.2);z-index:100;border-color:#fff;box-shadow:0 4px 6px rgba(0,0,0,.1)}.seat:hover::after{content:attr(data-label);position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:var(--tooltip-bg);color:#fff;padding:6px 10px;border-radius:4px;font-size:14px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 2px 4px rgba(0,0,0,.3)}}.seat.is-selected{transform:scale(1.2);z-index:100;border-color:#fff;box-shadow:0 4px 6px rgba(0,0,0,.1)}.action-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:20px 24px;box-shadow:0 -4px 20px rgba(0,0,0,.15);transform:translateY(110%);transition:transform .3s cubic-bezier(.16,1,.3,1);z-index:9999;display:flex;justify-content:space-between;align-items:center;border-top-left-radius:16px;border-top-right-radius:16px;padding-bottom:max(20px,env(safe-area-inset-bottom))}.action-bar.visible{transform:translateY(0)}.action-info{display:flex;flex-direction:column}.action-title{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:4px}.action-subtitle{font-size:13px;color:#64748b}.action-btn{background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:16px;box-shadow:0 4px 6px -1px rgba(37,99,235,.3);cursor:pointer}.action-btn:active{transform:scale(.96)}.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-20px);background:#ef4444;color:#fff;padding:10px 20px;border-radius:20px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:all .3s ease;z-index:2000;box-shadow:0 10px 15px -3px rgba(0,0,0,.2)}.toast.visible{opacity:1;transform:translateX(-50%) translateY(0)}.reset-zoom{display:none;position:absolute;bottom:120px;right:20px;background:#fff;border:1px solid #cbd5e1;padding:10px;border-radius:50%;box-shadow:0 4px 6px rgba(0,0,0,.1);z-index:100;font-size:20px;width:44px;height:44px;justify-content:center;align-items:center}@media (max-width:768px){.header{padding:10px 15px;padding-top:max(10px,env(safe-area-inset-top))}.title{font-size:16px}.reload-btn span:first-child{display:none}.controls{grid-template-columns:1fr;gap:15px;padding:15px;height:auto}.viewport{padding:0;overflow:hidden;touch-action:none}.legend{justify-content:center;flex-wrap:wrap;gap:10px;padding-bottom:10px}.reset-zoom{display:flex}}
+        .title-container { display: flex; align-items: center; gap: 10px; }
+        .github-link { color: #1e293b; display: flex; align-items: center; transition: color 0.2s; }
+        .github-link:hover { color: #2563eb; }
+        .github-icon { width: 20px; height: 20px; fill: currentColor; }
+        .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.9); border-top: 1px solid #e2e8f0; display: flex; align-items: stretch; z-index: 500; backdrop-filter: blur(4px); font-size: 13px; }
+        .footer-link { flex: 1; display: flex; align-items: center; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); color: #64748b; text-decoration: none; transition: color 0.2s; font-weight: 500; }
+        .footer-link:hover { color: var(--primary); }
+        .footer-link-left { justify-content: flex-end; padding-right: 8px; }
+        .footer-link-right { justify-content: flex-start; padding-left: 8px; }
+        .footer-separator { display: flex; align-items: center; color: #cbd5e1; user-select: none; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+        .bmc-footer-link { color: #d97706; font-weight: 600; }
+        .bmc-footer-link:hover { color: #b45309; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title-container">
+            <div class="title">📚 Plan BU Saint-Serge</div>
+            <a href="https://github.com/Seuguhfr/plan-bu" target="_blank" class="github-link">
+                <svg class="github-icon" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+            </a>
+        </div>
+        <button class="reload-btn" id="btnReload"><span id="lastUpdate">--:--</span> <span>↻ Actualiser</span></button>
+    </div>
+    <div class="controls">
+        <div><select id="datePicker" class="date-sel"></select></div>
+        <div class="slider-container">
+            <div class="time-label"><span id="lblStart">--</span> - <span id="lblEnd">--</span></div>
+            <div class="slider-wrap" id="slider">
+                <div class="track"></div><div class="fill" id="fill"></div>
+                <div id="nowMarker" class="now-marker"><div class="now-label">Maintenant</div></div>
+                <div class="thumb" id="thS"></div><div class="thumb" id="thE"></div>
+            </div>
+        </div>
+        <div class="legend">
+            <div class="leg-item"><div class="swatch sw-unknown"></div> Inconnu</div>
+            <div class="leg-item"><div class="swatch sw-busy"></div> Occupé</div>
+            <div class="leg-item"><div class="swatch sw-free"></div> Libre</div>
+            <div class="leg-item"><div class="swatch sw-plug"></div> Prises indiv.</div>
+            <div class="leg-item"><div class="swatch sw-light"></div> Lampe</div>
+        </div>
+    </div>
+    <div class="viewport" id="viewport">
+        <div class="map-container" id="mapContainer">
+            <img id="mapImageElement" class="map-img" alt="Map"><div id="overlay"></div>
+        </div>
+        <button class="reset-zoom" id="btnReset">⛶</button>
+    </div>
+    <div class="footer-bar">
+        <a href="https://www.buymeacoffee.com/hdbdt" target="_blank" class="footer-link footer-link-left bmc-footer-link" title="Aider à financer l'hébergement et le développement">Me soutenir ☕</a>
+        <span class="footer-separator">|</span>
+        <a href="https://tally.so/r/vGAPO8" target="_blank" class="footer-link footer-link-right">Une erreur/suggestion ?</a>
+    </div>
+    <div id="actionBar" class="action-bar">
+        <div class="action-info"><div class="action-title" id="barTitle">Place --</div><div class="action-subtitle" id="barStatus">Sélectionnez une place</div></div>
+        <button class="action-btn" id="btnBook">Réserver</button>
+    </div>
+    <div id="toast" class="toast">⚠️ Données indisponibles (Réessai...)</div>
+    
+    <script>
+        // Set this to your Worker's URL (e.g., "https://my-api.workers.dev"). 
+        // If hosted on the same domain, leave as ""
+        const API_BASE_URL = ""; 
+        const SITE_SLUG = "bua-st-serge";
+        
+        let LOCATIONS = {}; // Fetched dynamically now
+        let AVAILABILITY = {}; 
+        
+        const MIN_HOUR = 8, MAX_HOUR = 22;
+        const nowH = new Date().getHours();
+        let startHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH));
+        let endHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH + 2));
+        let selectedSeatId = null;
+
+        const SEAT_CACHE = {}; 
+        const MAP_BOX_CACHE = [];
+
+        const els = {
+            dp: document.getElementById('datePicker'),
+            overlay: document.getElementById('overlay'),
+            toast: document.getElementById('toast'),
+            slider: document.getElementById('slider'),
+            btnReload: document.getElementById('btnReload'),
+            lastUpdate: document.getElementById('lastUpdate'),
+            fill: document.getElementById('fill'),
+            thS: document.getElementById('thS'),
+            thE: document.getElementById('thE'),
+            lblStart: document.getElementById('lblStart'),
+            lblEnd: document.getElementById('lblEnd'),
+            mapContainer: document.getElementById('mapContainer'),
+            mapImageElement: document.getElementById('mapImageElement'),
+            viewport: document.getElementById('viewport'),
+            btnReset: document.getElementById('btnReset'),
+            actionBar: document.getElementById('actionBar'),
+            barTitle: document.getElementById('barTitle'),
+            barStatus: document.getElementById('barStatus'),
+            btnBook: document.getElementById('btnBook'),
+            nowMarker: document.getElementById('nowMarker')
+        };
+
+        els.mapContainer.style.willChange = "transform"; 
+
+        async function init() {
+            // Set up dynamic map image source
+            els.mapImageElement.src = `${API_BASE_URL}/assets/map.webp`;
+
+            // Setup Date Picker
+            const today = new Date();
+            for(let i=0; i<4; i++){
+                let d = new Date(today); d.setDate(today.getDate()+i);
+                let t = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+                els.dp.add(new Option(t.charAt(0).toUpperCase() + t.slice(1), d.toISOString().split('T')[0]));
+            }
+
+            // Fetch Seat Config from Worker
+            try {
+                const configRes = await fetch(`${API_BASE_URL}/api/config`);
+                LOCATIONS = await configRes.json();
+            } catch(e) {
+                showToast("Erreur critique: Config introuvable", true);
+                return;
+            }
+
+            buildMap();
+            setupMobileMap();
+            
+            els.viewport.addEventListener('click', (e) => {
+                if(e.target === els.viewport || e.target === els.mapContainer || e.target === els.overlay) {
+                    if(!wasDragging) deselect();
+                }
+            });
+
+            els.btnReload.addEventListener('click', () => loadData(true));
+            els.dp.addEventListener('change', () => { updateUI(); loadData(); updateTimeMarker(); });
+            els.btnReset.addEventListener('click', resetMap);
+            els.btnBook.addEventListener('click', () => { if(selectedSeatId) openBooking(selectedSeatId); });
+            
+            loadData();
+            updateUI();
+            updateTimeMarker();
+            setInterval(updateTimeMarker, 60000);
+        }
+
+        // --- DATA & MAP RENDERING ---
+        async function loadData(force = false) {
+            els.btnReload.style.opacity = '0.5';
+            Object.values(SEAT_CACHE).forEach(el => { el.classList.remove('is-free', 'is-busy', 'is-selected'); el.classList.add('skeleton'); });
+            AVAILABILITY = {}; 
+            try {
+                const url = `${API_BASE_URL}/api/load_day?date=${els.dp.value}&force=${force}&t=${Date.now()}`;
+                const res = await fetch(url);
+                if (res.status === 503) { setTimeout(() => loadData(force), 2000); return; }
+                const data = await res.json();
+                if (Object.keys(data).length === 0) {
+                    Object.values(SEAT_CACHE).forEach(el => el.classList.remove('skeleton'));
+                    showToast("Fermé / Pas de données", true);
+                    els.lastUpdate.innerText = "--:--";
+                } else {
+                    AVAILABILITY = data;
+                    const now = new Date(), m = now.getMinutes();
+                    els.lastUpdate.innerText = now.getHours() + ':' + (m<10?'0':'') + m;
+                    showToast("À jour", false);
+                    updateMap();
+                }
+            } catch(e) { 
+                showToast("Erreur connexion", true);
+                Object.values(SEAT_CACHE).forEach(el => el.classList.remove('skeleton'));
+            }
+            els.btnReload.style.opacity = '1';
+        }
+
+        function updateMap() {
+            if (Object.keys(AVAILABILITY).length === 0) return;
+            const isSunday = new Date(els.dp.value).getDay() === 0;
+            const s = Math.min(startHour, endHour), e = Math.max(startHour, endHour);
+            const reqSlots = [];
+            if (s === e) reqSlots.push(formatTime(s, isSunday));
+            else for (let h = s; h < e; h++) reqSlots.push(formatTime(h, isSunday));
+
+            MAP_BOX_CACHE.forEach(box => {
+                box.el.classList.remove('has-plug', 'has-light');
+                const d = AVAILABILITY[box.startId];
+                if (d) { if (d.hasPlug) box.el.classList.add('has-plug'); if (d.hasLight) box.el.classList.add('has-light'); }
+            });
+
+            Object.entries(SEAT_CACHE).forEach(([id, el]) => {
+                const data = AVAILABILITY[id];
+                el.classList.remove('skeleton', 'is-free', 'is-busy');
+                if (data) {
+                    const isFree = reqSlots.length > 0 && reqSlots.every(r => data.slots.includes(r));
+                    el.classList.add(isFree ? 'is-free' : 'is-busy');
+                }
+            });
+        }
+
+        function buildMap() {
+            Object.values(LOCATIONS).forEach(g => {
+                const box = document.createElement('div');
+                let ids = [];
+                if (g.id) ids = [g.id.toString()]; 
+                else if (g.ids && Array.isArray(g.ids)) ids = [...g.ids]; 
+                else if (g.start !== undefined && g.end !== undefined) {
+                    const count = parseInt(g.end) - parseInt(g.start) + 1;
+                    for(let i=0; i<count; i++) ids.push((parseInt(g.start) + i).toString());
+                } else return; 
+
+                const count = ids.length;
+                if (count === 0) return;
+
+                box.dataset.startId = ids[0]; 
+                box.className = `map-box ${g.direction || 'horizontal'}`;
+                box.style.setProperty('--x-pos', g.x); 
+                box.style.setProperty('--y-pos', g.y);
+                Object.assign(box.style, { left: g.x+'%', top: g.y+'%', width: g.w+'%', height: g.h+'%' });
+                
+                MAP_BOX_CACHE.push({ el: box, startId: ids[0] });
+
+                const isDouble = g.layout === 'double';
+                let cols = 1, rows = 1;
+                if (g.direction === 'horizontal') { 
+                    rows = isDouble ? 2 : 1; cols = isDouble ? Math.ceil(count / 2) : count; 
+                } else { 
+                    cols = isDouble ? 2 : 1; rows = isDouble ? Math.ceil(count / 2) : count; 
+                    if (isDouble) box.style.gridAutoFlow = 'column'; 
+                }
+                box.style.gridTemplateColumns = `repeat(${cols}, 1fr)`; 
+                box.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+                if (isDouble) {
+                    const m = Math.ceil(count/2); 
+                    ids = g.invert ? [...ids.slice(m).reverse(), ...ids.slice(0, m)] : [...ids.slice(0, m), ...ids.slice(m).reverse()];
+                } else if (g.invert) ids.reverse();
+
+                ids.forEach(id => {
+                    const el = document.createElement('div');
+                    el.className = 'seat skeleton'; 
+                    const safeDomId = id.replace(/[^a-zA-Z0-9_-]/g, '-');
+                    el.id = 'seat-' + safeDomId; 
+                    el.dataset.label = g.label || id; 
+
+                    el.addEventListener('click', (e) => { 
+                        e.stopPropagation(); 
+                        if(!wasDragging) selectSeat(id, el); 
+                    });
+                    
+                    SEAT_CACHE[id] = el;
+                    box.appendChild(el);
+                });
+                els.overlay.appendChild(box);
+            });
+        }
+
+        // --- UTILS ---
+        function formatTime(h, isSunday) { return (h < 10 ? '0'+h : h) + (isSunday ? ':00' : ':30'); }
+        function showToast(msg, err) { els.toast.innerText = msg; els.toast.style.background = err ? '#ef4444' : '#22c55e'; els.toast.classList.add('visible'); setTimeout(() => els.toast.classList.remove('visible'), 4000); }
+
+        function selectSeat(id, el) { 
+            if (selectedSeatId) SEAT_CACHE[selectedSeatId]?.classList.remove('is-selected');
+            selectedSeatId = id; el.classList.add('is-selected');
+            els.barTitle.innerText = isNaN(id) ? id : "Place " + id;
+            const d = AVAILABILITY[id], dets = []; if(d) { if(d.hasPlug) dets.push("Prise"); if(d.hasLight) dets.push("Lampe"); }
+            els.barStatus.innerText = dets.length > 0 ? dets.join(' • ') : "Standard"; 
+            els.actionBar.classList.add('visible'); 
+        }
+
+        function deselect() {
+            if (selectedSeatId) SEAT_CACHE[selectedSeatId]?.classList.remove('is-selected');
+            selectedSeatId = null; 
+            els.actionBar.classList.remove('visible');
+        }
+
+        function openBooking(num) { 
+            const d = AVAILABILITY[num];
+            if (!d) return;
+            let rId = d.resourceId || num; 
+            let typeId = d.typeId || "245"; 
+            window.open(`https://affluences.com/fr/sites/${SITE_SLUG}/reservation?type=${typeId}&date=${els.dp.value}&resource=${rId}`, '_blank'); 
+        }
+
+        function updateTimeMarker() {
+            const now = new Date();
+            if (els.dp.value === now.toISOString().split('T')[0]) {
+                const dec = now.getHours() + (now.getMinutes() / 60); const start = MIN_HOUR + 0.5;
+                if (dec >= start && dec <= (MAX_HOUR + 0.5)) { els.nowMarker.style.left = (((dec - start) / (MAX_HOUR - MIN_HOUR)) * 100) + '%'; els.nowMarker.style.display = 'block'; return; }
+            } els.nowMarker.style.display = 'none';
+        }
+
+        // --- SLIDER & MAP INTERACTION ---
+        let activeThumb = null, sliderTick = false;
+        function getH(x) { const r = els.slider.getBoundingClientRect(); return Math.round(MIN_HOUR + Math.max(0, Math.min(1, (x - r.left) / r.width)) * (MAX_HOUR - MIN_HOUR)); }
+        function updateUI() {
+            const isSunday = new Date(els.dp.value).getDay() === 0;
+            const pS = ((startHour-MIN_HOUR)/(MAX_HOUR-MIN_HOUR))*100, pE = ((endHour-MIN_HOUR)/(MAX_HOUR-MIN_HOUR))*100;
+            els.thS.style.left = pS+'%'; els.thE.style.left = pE+'%'; els.fill.style.left = Math.min(pS, pE)+'%'; els.fill.style.width = Math.abs(pE-pS)+'%';
+            els.lblStart.innerText = formatTime(Math.min(startHour, endHour), isSunday); els.lblEnd.innerText = formatTime(Math.max(startHour, endHour), isSunday);
+            updateMap(); sliderTick = false;
+        }
+        function moveS(x) { if(!activeThumb) return; if(activeThumb==='S') startHour=getH(x); else endHour=getH(x); if(!sliderTick) { requestAnimationFrame(updateUI); sliderTick = true; } }
+        els.slider.addEventListener('mousedown', e => { const h=getH(e.clientX); if(Math.abs(h-startHour)<Math.abs(h-endHour)){activeThumb='S';startHour=h;}else{activeThumb='E';endHour=h;} updateUI(); });
+        document.addEventListener('mousemove', e => moveS(e.clientX)); document.addEventListener('mouseup', () => activeThumb = null);
+        els.slider.addEventListener('touchstart', e => { e.preventDefault(); const h=getH(e.touches[0].clientX); if(Math.abs(h-startHour)<Math.abs(h-endHour)){activeThumb='S';startHour=h;}else{activeThumb='E';endHour=h;} updateUI(); }, {passive: false});
+        document.addEventListener('touchmove', e => { if(activeThumb) moveS(e.touches[0].clientX); }, {passive: false}); document.addEventListener('touchend', () => activeThumb = null);
+
+        let state = { x: 0, y: 0, scale: 1 };
+        let wasDragging = false, mapTick = false;
+        function resetMap() { state = { x: 0, y: 0, scale: els.viewport.clientWidth / 1600 }; applyT(); }
+        function applyT() {
+            const viewW = els.viewport.clientWidth, viewH = els.viewport.clientHeight;
+            const mapW = 1600 * state.scale, mapH = els.mapContainer.offsetHeight * state.scale;
+            state.x = Math.max((viewW/2)-mapW, Math.min(viewW/2, state.x)); state.y = Math.max((viewH/2)-mapH, Math.min(viewH/2, state.y));
+            els.mapContainer.style.transform = `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;
+            mapTick = false;
+        }
+        function requestMapUpdate() { if (!mapTick) { requestAnimationFrame(applyT); mapTick = true; } }
+
+        function setupMobileMap() {
+            let isDown = false, startX, startY;
+            els.mapContainer.addEventListener('mousedown', e => { isDown=true; startX=e.clientX - state.x; startY=e.clientY - state.y; wasDragging=false; });
+            window.addEventListener('mouseup', () => isDown = false);
+            window.addEventListener('mousemove', e => { if(!isDown) return; wasDragging = true; state.x = e.clientX - startX; state.y = e.clientY - startY; requestMapUpdate(); });
+
+            if (window.innerWidth > 768) return;
+            resetMap();
+            let sD = 0, sS = 1, sVX = 0, sVY = 0;
+            const getD = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+            const r = els.viewport.getBoundingClientRect();
+            const syncAnchor = (touches) => {
+                if(touches.length === 1) { sVX = (touches[0].clientX - r.left) - state.x; sVY = (touches[0].clientY - r.top) - state.y; }
+                else if (touches.length === 2) {
+                    sD = getD(touches); sS = state.scale;
+                    const mX = (touches[0].clientX + touches[1].clientX)/2; const mY = (touches[0].clientY + touches[1].clientY)/2;
+                    sVX = (mX - r.left) - state.x; sVY = (mY - r.top) - state.y;
+                }
+            };
+
+            els.mapContainer.addEventListener('touchstart', e => { wasDragging = false; syncAnchor(e.touches); }, { passive: false });
+            els.mapContainer.addEventListener('touchmove', e => {
+                e.preventDefault(); wasDragging = true;
+                if (e.touches.length === 2) {
+                    const cD = getD(e.touches); if (cD === 0) return;
+                    const rS = cD / sD; state.scale = Math.max(0.1, Math.min(sS * rS, 4));
+                    const mX = (e.touches[0].clientX + e.touches[1].clientX)/2; const mY = (e.touches[0].clientY + e.touches[1].clientY)/2;
+                    state.x = (mX - r.left) - (sVX * rS); state.y = (mY - r.top) - (sVY * rS);
+                } else if (e.touches.length === 1) {
+                    state.x = (e.touches[0].clientX - r.left) - sVX; state.y = (e.touches[0].clientY - r.top) - sVY;
+                }
+                requestMapUpdate();
+            }, { passive: false });
+            els.mapContainer.addEventListener('touchend', e => { if (e.touches.length > 0) syncAnchor(e.touches); });
+        }
+        init();
+    </script>
+</body>
+</html>
