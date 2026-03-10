@@ -5,7 +5,7 @@ Pour visualiser les places libres à la BU de St Serge, plus pratique que cette 
 
 Pareil si vous avez des suggestions hésitez pas
 
-Pour l'instant à aller voir [ici](https://affluence.hdbdt1597-cloudflare.workers.dev/) mais bientôt sur [plan-bu.com](https://plan-bu.com) !
+À aller voir sur [plan-bu.me](https://plan-bu.me) !
 
 Pour soutenir:
 - [Buy Me A Coffee](https://buymeacoffee.com/hdbdt)
