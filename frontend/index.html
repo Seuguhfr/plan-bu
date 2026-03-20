@@ -45,9 +45,13 @@
         @media (max-width:768px){
             .header{padding:10px 15px;padding-top:max(10px,env(safe-area-inset-top))}.title{font-size:16px}.reload-btn span:first-child{display:none}
             
-            /* Reorganized grid for mobile */
             .controls{grid-template-columns:1fr auto;grid-template-areas:"date legend" "slider slider";gap:12px;padding:15px;height:auto}
             .controls > div:first-child{grid-area:date}
+            
+            /* Enforce identical height for both inputs */
+            .date-sel { height: 36px; box-sizing: border-box; padding: 0 10px; }
+            .legend-btn { height: 36px; box-sizing: border-box; width: auto; justify-content: center; padding: 0 12px; font-size: 13px; background: transparent; border: 1px solid #cbd5e1; color: #64748b; border-radius: 6px; margin: 0; }
+            
             .slider-container{grid-area:slider;flex-direction:row;align-items:center;gap:15px}.slider-wrap{flex:1}.time-label{margin-bottom:0;order:2;min-width:85px;text-align:right}
             .legend-btn-wrap { grid-area:legend; justify-content: flex-end; }
             
