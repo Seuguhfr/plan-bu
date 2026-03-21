@@ -12,11 +12,11 @@
             --bg: #f8fafc;
             --seat-unknown: #cbd5e1;
             --seat-busy: #64748b;
-            --seat-free: rgba(16, 185, 129, 0.8);
-            --seat-border: rgba(255, 255, 255, 0.4);
+            --seat-free: color-mix(in srgb, #10b981 80%, transparent);
+            --seat-border: color-mix(in srgb, #ffffff 40%, transparent);
             --plug-color: #3b82f6;
-            --light-glow: rgba(253, 224, 71, 0.4);
-            --tooltip-bg: rgba(15, 23, 42, 0.9);
+            --light-glow: color-mix(in srgb, #fde047 40%, transparent);
+            --tooltip-bg: color-mix(in srgb, #0f172a 90%, transparent);
         }
 
         body {
@@ -64,15 +64,14 @@
             gap: 8px;
             color: #475569;
             transition: all .2s;
-        }
 
-        .reload-btn:hover {
-            background: #f1f5f9;
-            border-color: #94a3b8;
-        }
-
-        .reload-btn:active {
-            transform: translateY(1px);
+            &:hover {
+                background: #f1f5f9;
+                border-color: #94a3b8;
+            }
+            &:active {
+                transform: translateY(1px);
+            }
         }
 
         .controls {
@@ -117,7 +116,7 @@
             position: relative;
             height: 30px;
             cursor: pointer;
-            touch-action: none;
+            touch-action: none; 
         }
 
         .track {
@@ -151,10 +150,10 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
             transition: transform .1s;
             z-index: 10;
-        }
 
-        .thumb:hover {
-            transform: translate(-50%, -50%) scale(1.2);
+            &:hover {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
         }
 
         .now-marker {
@@ -196,16 +195,15 @@
             gap: 8px;
             transition: all 0.2s;
             font-size: 14px;
-        }
 
-        .legend-btn:hover {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-            color: #1e293b;
-        }
-
-        .legend-btn:active {
-            transform: scale(0.96);
+            &:hover {
+                background: #f1f5f9;
+                border-color: #cbd5e1;
+                color: #1e293b;
+            }
+            &:active {
+                transform: scale(0.96);
+            }
         }
 
         .viewport {
@@ -223,6 +221,7 @@
             background: #fff;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, .1);
             transform-origin: 0 0;
+            touch-action: none; 
         }
 
         .map-img {
@@ -238,24 +237,27 @@
             gap: 2px;
             pointer-events: none;
             border-radius: 3px;
+
+            &.has-plug::after {
+                content: "";
+                position: absolute;
+                inset: -3px;
+                border: 3px solid var(--plug-color);
+                border-radius: 5px;
+                pointer-events: none;
+                z-index: 10;
+            }
+            &.has-light {
+                background: var(--light-glow);
+                box-shadow: 0 0 20px var(--light-glow);
+            }
         }
 
-        .map-box.has-plug::after {
-            content: "";
-            position: absolute;
-            inset: -3px;
-            border: 3px solid var(--plug-color);
-            border-radius: 5px;
-            pointer-events: none;
-            z-index: 10;
+        @keyframes sharp-wave-opacity {
+            0%, 20%, 100% { opacity: 0; }
+            10% { opacity: 1; }
         }
 
-        .map-box.has-light {
-            background: var(--light-glow);
-            box-shadow: 0 0 20px var(--light-glow);
-        }
-
-        /* Optimized Seat & Skeleton Animation */
         .seat {
             background: var(--seat-unknown);
             border: 1px solid var(--seat-border);
@@ -266,39 +268,45 @@
             cursor: pointer;
             user-select: none;
             -webkit-user-select: none;
-        }
+            -webkit-touch-callout: none; /* Safari mobile fix */
+            padding: 0;
+            outline: none;
+            display: block;
+            width: 100%;
+            height: 100%;
 
-        @keyframes sharp-wave-opacity {
-            0%, 20%, 100% { opacity: 0; }
-            10% { opacity: 1; }
-        }
+            &.skeleton {
+                background-color: var(--seat-unknown);
+                border-color: rgba(255, 255, 255, 0.2);
+                
+                &::before {
+                    content: "";
+                    position: absolute;
+                    inset: 0;
+                    background-color: #fff;
+                    border-radius: inherit;
+                    pointer-events: none;
+                    opacity: 0;
+                    will-change: opacity;
+                    animation: sharp-wave-opacity 1.5s infinite linear;
+                    animation-delay: calc(((100 - var(--x-pos)) + (100 - var(--y-pos))) * 0.008s);
+                }
+            }
 
-        .seat.skeleton {
-            background-color: var(--seat-unknown);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
+            &.is-busy { background: var(--seat-busy); }
+            
+            &.is-free {
+                background: var(--seat-free);
+                box-shadow: inset 0 0 4px rgba(255, 255, 255, .4);
+                z-index: 2;
+            }
 
-        .seat.skeleton::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background-color: #fff;
-            border-radius: inherit;
-            pointer-events: none;
-            opacity: 0;
-            will-change: opacity;
-            animation: sharp-wave-opacity 1.5s infinite linear;
-            animation-delay: calc(((100 - var(--x-pos)) + (100 - var(--y-pos))) * 0.008s);
-        }
-
-        .seat.is-busy {
-            background: var(--seat-busy);
-        }
-
-        .seat.is-free {
-            background: var(--seat-free);
-            box-shadow: inset 0 0 4px rgba(255, 255, 255, .4);
-            z-index: 2;
+            &.is-selected {
+                transform: scale(1.2);
+                z-index: 100;
+                border-color: #fff;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
+            }
         }
 
         @media (hover: hover) {
@@ -307,38 +315,31 @@
                 z-index: 100;
                 border-color: #fff;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
-            }
-            .seat:hover::after {
-                content: attr(data-label);
-                position: absolute;
-                bottom: 130%;
-                left: 50%;
-                transform: translateX(-50%);
-                background: var(--tooltip-bg);
-                color: #fff;
-                padding: 6px 10px;
-                border-radius: 4px;
-                font-size: 14px;
-                font-weight: 600;
-                white-space: nowrap;
-                pointer-events: none;
-                z-index: 200;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
-            }
-        }
 
-        .seat.is-selected {
-            transform: scale(1.2);
-            z-index: 100;
-            border-color: #fff;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
+                &::after {
+                    content: attr(data-label);
+                    position: absolute;
+                    bottom: 130%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: var(--tooltip-bg);
+                    color: #fff;
+                    padding: 6px 10px;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    pointer-events: none;
+                    z-index: 200;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
+                }
+            }
         }
 
         .action-bar {
             position: fixed;
             bottom: 0;
-            left: 0;
-            right: 0;
+            inset-inline: 0;
             background: #fff;
             padding: 20px 24px;
             box-shadow: 0 -4px 20px rgba(0, 0, 0, .15);
@@ -351,10 +352,10 @@
             border-top-left-radius: 16px;
             border-top-right-radius: 16px;
             padding-bottom: max(20px, env(safe-area-inset-bottom));
-        }
 
-        .action-bar.visible {
-            transform: translateY(0);
+            &.visible {
+                transform: translateY(0);
+            }
         }
 
         .action-info {
@@ -362,17 +363,8 @@
             flex-direction: column;
         }
 
-        .action-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 4px;
-        }
-
-        .action-subtitle {
-            font-size: 13px;
-            color: #64748b;
-        }
+        .action-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+        .action-subtitle { font-size: 13px; color: #64748b; }
 
         .action-btn {
             background: var(--primary);
@@ -384,10 +376,8 @@
             font-size: 16px;
             box-shadow: 0 4px 6px -1px rgba(37, 99, 235, .3);
             cursor: pointer;
-        }
 
-        .action-btn:active {
-            transform: scale(.96);
+            &:active { transform: scale(.96); }
         }
 
         .toast {
@@ -406,11 +396,11 @@
             transition: all .3s ease;
             z-index: 2000;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, .2);
-        }
 
-        .toast.visible {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
+            &.visible {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
         }
 
         .reset-zoom {
@@ -444,11 +434,12 @@
             pointer-events: none;
             transition: opacity 0.3s ease;
             padding: 20px;
-        }
 
-        .modal-overlay.visible {
-            opacity: 1;
-            pointer-events: auto;
+            &.visible {
+                opacity: 1;
+                pointer-events: auto;
+                .modal-content { transform: scale(1); }
+            }
         }
 
         .modal-content {
@@ -462,22 +453,14 @@
             overflow: hidden;
         }
 
-        .modal-overlay.visible .modal-content {
-            transform: scale(1);
-        }
-
         .modal-header {
             padding: 20px 24px;
             border-bottom: 1px solid #e2e8f0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
 
-        .modal-header h3 {
-            margin: 0;
-            font-size: 18px;
-            color: #1e293b;
+            h3 { margin: 0; font-size: 18px; color: #1e293b; }
         }
 
         .modal-close {
@@ -490,25 +473,15 @@
             border-radius: 6px;
             line-height: 1;
             transition: all 0.2s;
+
+            &:hover {
+                background: #f1f5f9;
+                color: #ef4444;
+            }
         }
 
-        .modal-close:hover {
-            background: #f1f5f9;
-            color: #ef4444;
-        }
-
-        .modal-body {
-            display: flex;
-            padding: 24px;
-            gap: 30px;
-        }
-
-        .legend-list {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
+        .modal-body { display: flex; padding: 24px; gap: 30px; }
+        .legend-list { flex: 1; display: flex; flex-direction: column; gap: 8px; }
 
         .leg-interactive {
             display: flex;
@@ -523,21 +496,14 @@
             font-size: 14px;
             user-select: none;
             -webkit-user-select: none;
+
+            &:hover, &:active {
+                background: #f1f5f9;
+                color: #1e293b;
+            }
         }
 
-        .leg-interactive:hover,
-        .leg-interactive:active {
-            background: #f1f5f9;
-            color: #1e293b;
-        }
-
-        .swatch {
-            width: 16px;
-            height: 16px;
-            border-radius: 4px;
-            flex-shrink: 0;
-        }
-
+        .swatch { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
         .sw-plug { border: 2px solid var(--plug-color); }
         .sw-light { background: #fef08a; border: 1px solid #eab308; }
         .sw-unknown { background: var(--seat-unknown); }
@@ -587,11 +553,7 @@
                 height: auto;
             }
             .controls > div:first-child { grid-area: date; }
-            .date-sel {
-                height: 36px;
-                box-sizing: border-box;
-                padding: 0 10px;
-            }
+            .date-sel { height: 36px; box-sizing: border-box; padding: 0 10px; }
             .legend-btn {
                 height: 36px;
                 box-sizing: border-box;
@@ -605,31 +567,13 @@
                 border-radius: 6px;
                 margin: 0;
             }
-            .slider-container {
-                grid-area: slider;
-                flex-direction: row;
-                align-items: center;
-                gap: 15px;
-            }
+            .slider-container { grid-area: slider; flex-direction: row; align-items: center; gap: 15px; }
             .slider-wrap { flex: 1; }
-            .time-label {
-                margin-bottom: 0;
-                order: 2;
-                min-width: 85px;
-                text-align: right;
-            }
-            .legend-btn-wrap {
-                grid-area: legend;
-                justify-content: flex-end;
-            }
-            .viewport {
-                padding: 0;
-                overflow: hidden;
-                touch-action: none;
-            }
+            .time-label { margin-bottom: 0; order: 2; min-width: 85px; text-align: right; }
+            .legend-btn-wrap { grid-area: legend; justify-content: flex-end; }
+            .viewport { padding: 0; overflow: hidden; touch-action: none; }
             .reset-zoom { display: flex; }
 
-            /* Mobile Modal Fix */
             .modal-body {
                 flex-direction: column-reverse;
                 align-items: center;
@@ -639,35 +583,24 @@
                 -webkit-overflow-scrolling: touch;
             }
             .legend-list { width: 100%; }
-            .legend-showcase {
-                width: 100%;
-                height: 144px;
-                flex-shrink: 0;
-                box-sizing: border-box;
-            }
+            .legend-showcase { width: 100%; height: 144px; flex-shrink: 0; box-sizing: border-box; }
         }
 
-        .title-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        .title-container { display: flex; align-items: center; gap: 10px; }
 
         .github-link {
             color: #1e293b;
             display: flex;
             align-items: center;
             transition: color 0.2s;
+            &:hover { color: #2563eb; }
         }
-
-        .github-link:hover { color: #2563eb; }
         .github-icon { width: 20px; height: 20px; fill: currentColor; }
 
         .footer-bar {
             position: fixed;
             bottom: 0;
-            left: 0;
-            right: 0;
+            inset-inline: 0;
             background: rgba(255, 255, 255, 0.9);
             border-top: 1px solid #e2e8f0;
             display: flex;
@@ -687,9 +620,10 @@
             text-decoration: none;
             transition: color 0.2s;
             font-weight: 500;
+
+            &:hover { color: var(--primary); }
         }
 
-        .footer-link:hover { color: var(--primary); }
         .footer-link-left { justify-content: flex-end; padding-right: 8px; }
         .footer-link-right { justify-content: flex-start; padding-left: 8px; }
 
@@ -722,10 +656,10 @@
         <div><select id="datePicker" class="date-sel"></select></div>
         <div class="slider-container">
             <div class="time-label"><span id="lblStart">--</span> - <span id="lblEnd">--</span></div>
-            <div class="slider-wrap" id="slider">
+            <div class="slider-wrap" id="slider" role="slider" aria-valuemin="8" aria-valuemax="22">
                 <div class="track"></div><div class="fill" id="fill"></div>
                 <div id="nowMarker" class="now-marker"><div class="now-label">Maintenant</div></div>
-                <div class="thumb" id="thS"></div><div class="thumb" id="thE"></div>
+                <div class="thumb" id="thS" tabindex="0"></div><div class="thumb" id="thE" tabindex="0"></div>
             </div>
         </div>
         <div class="legend-btn-wrap">
@@ -797,9 +731,27 @@
 
         const MIN_HOUR = 8, MAX_HOUR = 22;
         const nowH = new Date().getHours();
-        let startHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH));
-        let endHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH + 2));
-        let selectedSeatId = null;
+        
+        let stateTick = false;
+        const appState = new Proxy({
+            startHour: Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH)),
+            endHour: Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH + 2)),
+            selectedSeatId: null
+        }, {
+            set(target, prop, value) {
+                if (target[prop] === value) return true;
+                target[prop] = value;
+                
+                if (!stateTick) {
+                    requestAnimationFrame(() => {
+                        updateUI();
+                        stateTick = false;
+                    });
+                    stateTick = true;
+                }
+                return true;
+            }
+        });
 
         const SEAT_CACHE = {};
         const MAP_BOX_CACHE = [];
@@ -827,11 +779,11 @@
             nowMarker: document.getElementById('nowMarker'),
             btnOpenLegend: document.getElementById('btnOpenLegend'),
             btnCloseLegend: document.getElementById('btnCloseLegend'),
-            legendModal: document.getElementById('legendModal'),
-            legendModalContent: document.getElementById('legendModalContent')
+            legendModal: document.getElementById('legendModal')
         };
 
         els.mapContainer.style.willChange = "transform";
+        let wasDragging = false; 
 
         async function init() {
             els.mapImageElement.onload = resetMap;
@@ -841,8 +793,11 @@
             for (let i = 0; i < 4; i++) {
                 let d = new Date(today);
                 d.setDate(today.getDate() + i);
+                
+                // Fix #1: Construct local date string to avoid UTC offset issues at night
+                const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 let t = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                els.dp.add(new Option(t.charAt(0).toUpperCase() + t.slice(1), d.toISOString().split('T')[0]));
+                els.dp.add(new Option(t.charAt(0).toUpperCase() + t.slice(1), localDate));
             }
 
             try {
@@ -854,12 +809,20 @@
             }
 
             buildMap();
-            setupMobileMap();
+            setupPointerMap(); 
             setupLegendModal();
 
             els.viewport.addEventListener('click', (e) => {
                 if (e.target === els.viewport || e.target === els.mapContainer || e.target === els.overlay) {
                     if (!wasDragging) deselect();
+                }
+            });
+
+            // Fix #4: Correct map boundaries when viewport resizes or rotates
+            window.addEventListener('resize', () => {
+                if (!mapTick) {
+                    requestAnimationFrame(applyT);
+                    mapTick = true;
                 }
             });
 
@@ -871,7 +834,7 @@
             });
             els.btnReset.addEventListener('click', resetMap);
             els.btnBook.addEventListener('click', () => { 
-                if (selectedSeatId) openBooking(selectedSeatId); 
+                if (appState.selectedSeatId) openBooking(appState.selectedSeatId); 
             });
 
             loadData();
@@ -908,21 +871,14 @@
                     demoSeats[2].className = 'seat demo-seat is-busy';
                     demoSeats[3].className = 'seat demo-seat is-free';
 
-                    if (type === 'unknown') {
-                        demoSeats.forEach(s => s.className = 'seat demo-seat');
-                    } else if (type === 'busy') {
-                        demoSeats.forEach(s => s.className = 'seat demo-seat is-busy');
-                    } else if (type === 'free') {
-                        demoSeats.forEach(s => s.className = 'seat demo-seat is-free');
-                    } else if (type === 'plug') {
-                        demoBox.classList.add('has-plug');
-                    } else if (type === 'light') {
-                        demoBox.classList.add('has-light');
-                    }
+                    if (type === 'unknown') demoSeats.forEach(s => s.className = 'seat demo-seat');
+                    else if (type === 'busy') demoSeats.forEach(s => s.className = 'seat demo-seat is-busy');
+                    else if (type === 'free') demoSeats.forEach(s => s.className = 'seat demo-seat is-free');
+                    else if (type === 'plug') demoBox.classList.add('has-plug');
+                    else if (type === 'light') demoBox.classList.add('has-light');
                 });
                 item.addEventListener('pointerleave', resetDemo);
             });
-
             resetDemo();
         }
 
@@ -962,7 +918,8 @@
         function updateMap() {
             if (Object.keys(AVAILABILITY).length === 0) return;
             const isSunday = new Date(els.dp.value).getDay() === 0;
-            const s = Math.min(startHour, endHour), e = Math.max(startHour, endHour);
+            const s = Math.min(appState.startHour, appState.endHour);
+            const e = Math.max(appState.startHour, appState.endHour);
             const reqSlots = [];
             
             if (s === e) reqSlots.push(formatTime(s, isSunday));
@@ -989,31 +946,33 @@
 
         function buildMap() {
             Object.values(LOCATIONS).forEach(g => {
+                let { id, ids: groupIds, start, end, direction = 'horizontal', label, layout, invert, x, y, w, h } = g;
+                
                 const box = document.createElement('div');
                 let ids = [];
                 
-                if (g.id) ids = [g.id.toString()];
-                else if (g.ids && Array.isArray(g.ids)) ids = [...g.ids];
-                else if (g.start !== undefined && g.end !== undefined) {
-                    const count = parseInt(g.end) - parseInt(g.start) + 1;
-                    for (let i = 0; i < count; i++) ids.push((parseInt(g.start) + i).toString());
+                if (id) ids = [id.toString()];
+                else if (groupIds && Array.isArray(groupIds)) ids = [...groupIds];
+                else if (start !== undefined && end !== undefined) {
+                    const count = parseInt(end) - parseInt(start) + 1;
+                    for (let i = 0; i < count; i++) ids.push((parseInt(start) + i).toString());
                 } else return;
 
                 const count = ids.length;
                 if (count === 0) return;
 
                 box.dataset.startId = ids[0];
-                box.className = `map-box ${g.direction || 'horizontal'}`;
-                box.style.setProperty('--x-pos', g.x);
-                box.style.setProperty('--y-pos', g.y);
-                Object.assign(box.style, { left: g.x + '%', top: g.y + '%', width: g.w + '%', height: g.h + '%' });
+                box.className = `map-box ${direction}`;
+                box.style.setProperty('--x-pos', x);
+                box.style.setProperty('--y-pos', y);
+                Object.assign(box.style, { left: x + '%', top: y + '%', width: w + '%', height: h + '%' });
 
                 MAP_BOX_CACHE.push({ el: box, startId: ids[0] });
 
-                const isDouble = g.layout === 'double';
+                const isDouble = layout === 'double';
                 let cols = 1, rows = 1;
                 
-                if (g.direction === 'horizontal') {
+                if (direction === 'horizontal') {
                     rows = isDouble ? 2 : 1; 
                     cols = isDouble ? Math.ceil(count / 2) : count;
                 } else {
@@ -1026,24 +985,29 @@
 
                 if (isDouble) {
                     const m = Math.ceil(count / 2);
-                    ids = g.invert 
+                    ids = invert 
                         ? [...ids.slice(m).reverse(), ...ids.slice(0, m)] 
                         : [...ids.slice(0, m), ...ids.slice(m).reverse()];
-                } else if (g.invert) ids.reverse();
+                } else if (invert) ids.reverse();
 
-                ids.forEach(id => {
-                    const el = document.createElement('div');
+                ids.forEach(seatId => {
+                    const el = document.createElement('button');
+                    el.type = 'button';
                     el.className = 'seat skeleton';
-                    const safeDomId = id.replace(/[^a-zA-Z0-9_-]/g, '-');
+                    const safeDomId = seatId.replace(/[^a-zA-Z0-9_-]/g, '-');
                     el.id = 'seat-' + safeDomId;
-                    el.dataset.label = g.label || id;
+                    el.dataset.label = label || seatId;
 
                     el.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        if (!wasDragging) selectSeat(id, el);
+                        // Fix #2: A11y Keyboard Enter/Space bypasses the mouse drag flag
+                        const isKeyboardClick = e.clientX === 0 && e.clientY === 0;
+                        if (!wasDragging || isKeyboardClick) {
+                            selectSeat(seatId, el);
+                        }
                     });
 
-                    SEAT_CACHE[id] = el;
+                    SEAT_CACHE[seatId] = el;
                     box.appendChild(el);
                 });
                 els.overlay.appendChild(box);
@@ -1062,8 +1026,8 @@
         }
 
         function selectSeat(id, el) {
-            if (selectedSeatId) SEAT_CACHE[selectedSeatId]?.classList.remove('is-selected');
-            selectedSeatId = id; 
+            if (appState.selectedSeatId) SEAT_CACHE[appState.selectedSeatId]?.classList.remove('is-selected');
+            appState.selectedSeatId = id; 
             el.classList.add('is-selected');
             els.barTitle.innerText = isNaN(id) ? id : "Place " + id;
             
@@ -1077,8 +1041,8 @@
         }
 
         function deselect() {
-            if (selectedSeatId) SEAT_CACHE[selectedSeatId]?.classList.remove('is-selected');
-            selectedSeatId = null;
+            if (appState.selectedSeatId) SEAT_CACHE[appState.selectedSeatId]?.classList.remove('is-selected');
+            appState.selectedSeatId = null;
             els.actionBar.classList.remove('visible');
         }
 
@@ -1104,8 +1068,6 @@
             els.nowMarker.style.display = 'none';
         }
 
-        let activeThumb = null, sliderTick = false;
-        
         function getH(x) { 
             const r = els.slider.getBoundingClientRect(); 
             return Math.round(MIN_HOUR + Math.max(0, Math.min(1, (x - r.left) / r.width)) * (MAX_HOUR - MIN_HOUR)); 
@@ -1113,80 +1075,66 @@
         
         function updateUI() {
             const isSunday = new Date(els.dp.value).getDay() === 0;
-            const pS = ((startHour - MIN_HOUR) / (MAX_HOUR - MIN_HOUR)) * 100;
-            const pE = ((endHour - MIN_HOUR) / (MAX_HOUR - MIN_HOUR)) * 100;
+            const pS = ((appState.startHour - MIN_HOUR) / (MAX_HOUR - MIN_HOUR)) * 100;
+            const pE = ((appState.endHour - MIN_HOUR) / (MAX_HOUR - MIN_HOUR)) * 100;
             
             els.thS.style.left = pS + '%'; 
             els.thE.style.left = pE + '%'; 
             els.fill.style.left = Math.min(pS, pE) + '%'; 
             els.fill.style.width = Math.abs(pE - pS) + '%';
-            els.lblStart.innerText = formatTime(Math.min(startHour, endHour), isSunday); 
-            els.lblEnd.innerText = formatTime(Math.max(startHour, endHour), isSunday);
+            els.lblStart.innerText = formatTime(Math.min(appState.startHour, appState.endHour), isSunday); 
+            els.lblEnd.innerText = formatTime(Math.max(appState.startHour, appState.endHour), isSunday);
             
             updateMap(); 
-            sliderTick = false;
-        }
-        
-        function moveS(x) { 
-            if (!activeThumb) return; 
-            if (activeThumb === 'S') startHour = getH(x); 
-            else endHour = getH(x); 
-            
-            if (!sliderTick) { 
-                requestAnimationFrame(updateUI); 
-                sliderTick = true; 
-            } 
         }
 
-        els.slider.addEventListener('mousedown', e => { 
+        let activeThumb = null;
+        
+        const handleSliderMove = e => {
+            if (!activeThumb) return;
+            const h = getH(e.clientX);
+            if (activeThumb === 'S') appState.startHour = h;
+            else appState.endHour = h;
+        };
+
+        const handleSliderUp = e => {
+            activeThumb = null;
+            els.slider.releasePointerCapture(e.pointerId);
+            els.slider.removeEventListener('pointermove', handleSliderMove);
+            els.slider.removeEventListener('pointerup', handleSliderUp);
+            els.slider.removeEventListener('pointercancel', handleSliderUp);
+        };
+
+        els.slider.addEventListener('pointerdown', e => {
+            els.slider.setPointerCapture(e.pointerId); 
             const h = getH(e.clientX); 
-            if (Math.abs(h - startHour) < Math.abs(h - endHour)) { 
+            if (Math.abs(h - appState.startHour) < Math.abs(h - appState.endHour)) { 
                 activeThumb = 'S'; 
-                startHour = h; 
+                appState.startHour = h; 
             } else { 
                 activeThumb = 'E'; 
-                endHour = h; 
+                appState.endHour = h; 
             } 
-            updateUI(); 
+            els.slider.addEventListener('pointermove', handleSliderMove);
+            els.slider.addEventListener('pointerup', handleSliderUp);
+            els.slider.addEventListener('pointercancel', handleSliderUp);
         });
-        
-        document.addEventListener('mousemove', e => moveS(e.clientX)); 
-        document.addEventListener('mouseup', () => activeThumb = null);
-        
-        els.slider.addEventListener('touchstart', e => { 
-            e.preventDefault(); 
-            const h = getH(e.touches[0].clientX); 
-            if (Math.abs(h - startHour) < Math.abs(h - endHour)) { 
-                activeThumb = 'S'; 
-                startHour = h; 
-            } else { 
-                activeThumb = 'E'; 
-                endHour = h; 
-            } 
-            updateUI(); 
-        }, { passive: false });
-        
-        document.addEventListener('touchmove', e => { 
-            if (activeThumb) moveS(e.touches[0].clientX); 
-        }, { passive: false }); 
-        
-        document.addEventListener('touchend', () => activeThumb = null);
 
-        let state = { x: 0, y: 0, scale: 1 };
-        let wasDragging = false, mapTick = false;
+        let mapState = { x: 0, y: 0, scale: 1 };
+        let mapTick = false;
         
         function resetMap() { 
-            state = { x: 0, y: 0, scale: els.viewport.clientWidth / 1600 }; 
+            mapState = { x: 0, y: 0, scale: els.viewport.clientWidth / 1600 }; 
             applyT(); 
         }
         
         function applyT() {
             const viewW = els.viewport.clientWidth, viewH = els.viewport.clientHeight;
-            const mapW = 1600 * state.scale, mapH = els.mapContainer.offsetHeight * state.scale;
+            const mapW = 1600 * mapState.scale, mapH = els.mapContainer.offsetHeight * mapState.scale;
             
-            state.x = Math.max((viewW / 2) - mapW, Math.min(viewW / 2, state.x)); 
-            state.y = Math.max((viewH / 2) - mapH, Math.min(viewH / 2, state.y));
-            els.mapContainer.style.transform = `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;
+            mapState.x = Math.max((viewW / 2) - mapW, Math.min(viewW / 2, mapState.x)); 
+            mapState.y = Math.max((viewH / 2) - mapH, Math.min(viewH / 2, mapState.y));
+            els.mapContainer.style.transform = `translate3d(${mapState.x}px, ${mapState.y}px, 0) scale(${mapState.scale})`;
             mapTick = false;
         }
         
@@ -1197,73 +1145,81 @@
             } 
         }
 
-        function setupMobileMap() {
-            let isDown = false, startX, startY;
-            
-            els.mapContainer.addEventListener('mousedown', e => { 
-                isDown = true; 
-                startX = e.clientX - state.x; 
-                startY = e.clientY - state.y; 
-                wasDragging = false; 
-            });
-            window.addEventListener('mouseup', () => isDown = false);
-            window.addEventListener('mousemove', e => { 
-                if (!isDown) return; 
-                wasDragging = true; 
-                state.x = e.clientX - startX; 
-                state.y = e.clientY - startY; 
-                requestMapUpdate(); 
-            });
-
-            if (window.innerWidth > 768) return;
-
+        function setupPointerMap() {
+            const activePointers = new Map();
             let sD = 0, sS = 1, sVX = 0, sVY = 0;
-            const getD = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-            const r = els.viewport.getBoundingClientRect();
+            let startX = 0, startY = 0; 
             
-            const syncAnchor = (touches) => {
-                if (touches.length === 1) { 
-                    sVX = (touches[0].clientX - r.left) - state.x; 
-                    sVY = (touches[0].clientY - r.top) - state.y; 
-                } else if (touches.length === 2) {
-                    sD = getD(touches); 
-                    sS = state.scale;
-                    const mX = (touches[0].clientX + touches[1].clientX) / 2; 
-                    const mY = (touches[0].clientY + touches[1].clientY) / 2;
-                    sVX = (mX - r.left) - state.x; 
-                    sVY = (mY - r.top) - state.y;
+            const getD = (p1, p2) => Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+            const getViewportRect = () => els.viewport.getBoundingClientRect();
+
+            const syncAnchors = () => {
+                const pts = Array.from(activePointers.values());
+                const r = getViewportRect();
+                if (pts.length === 1) {
+                    sVX = (pts[0].clientX - r.left) - mapState.x;
+                    sVY = (pts[0].clientY - r.top) - mapState.y;
+                } else if (pts.length === 2) {
+                    sD = getD(pts[0], pts[1]);
+                    sS = mapState.scale;
+                    const mX = (pts[0].clientX + pts[1].clientX) / 2;
+                    const mY = (pts[0].clientY + pts[1].clientY) / 2;
+                    sVX = (mX - r.left) - mapState.x;
+                    sVY = (mY - r.top) - mapState.y;
                 }
             };
 
-            els.mapContainer.addEventListener('touchstart', e => { 
-                wasDragging = false; 
-                syncAnchor(e.touches); 
-            }, { passive: false });
-            
-            els.mapContainer.addEventListener('touchmove', e => {
-                e.preventDefault(); 
-                wasDragging = true;
-                
-                if (e.touches.length === 2) {
-                    const cD = getD(e.touches); 
-                    if (cD === 0) return;
-                    const rS = cD / sD; 
-                    state.scale = Math.max(0.1, Math.min(sS * rS, 4));
-                    
-                    const mX = (e.touches[0].clientX + e.touches[1].clientX) / 2; 
-                    const mY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                    state.x = (mX - r.left) - (sVX * rS); 
-                    state.y = (mY - r.top) - (sVY * rS);
-                } else if (e.touches.length === 1) {
-                    state.x = (e.touches[0].clientX - r.left) - sVX; 
-                    state.y = (e.touches[0].clientY - r.top) - sVY;
+            els.mapContainer.addEventListener('pointerdown', e => {
+                activePointers.set(e.pointerId, e);
+                if (activePointers.size === 1) {
+                    startX = e.clientX;
+                    startY = e.clientY;
                 }
-                requestMapUpdate();
-            }, { passive: false });
-            
-            els.mapContainer.addEventListener('touchend', e => { 
-                if (e.touches.length > 0) syncAnchor(e.touches); 
+                wasDragging = false;
+                syncAnchors();
             });
+
+            els.mapContainer.addEventListener('pointermove', e => {
+                if (!activePointers.has(e.pointerId)) return;
+                activePointers.set(e.pointerId, e);
+                
+                const pts = Array.from(activePointers.values());
+                const r = getViewportRect();
+
+                if (pts.length === 2) {
+                    wasDragging = true; 
+                    const cD = getD(pts[0], pts[1]);
+                    if (cD === 0) return;
+                    const rS = cD / sD;
+                    mapState.scale = Math.max(0.1, Math.min(sS * rS, 4));
+                    
+                    const mX = (pts[0].clientX + pts[1].clientX) / 2;
+                    const mY = (pts[0].clientY + pts[1].clientY) / 2;
+                    mapState.x = (mX - r.left) - (sVX * rS);
+                    mapState.y = (mY - r.top) - (sVY * rS);
+                    requestMapUpdate();
+                } else if (pts.length === 1) {
+                    // Fix #3: Drag threshold prevents loose UI jitter on tap
+                    const moveDist = Math.hypot(e.clientX - startX, e.clientY - startY);
+                    if (moveDist > 5) {
+                        wasDragging = true;
+                    }
+
+                    if (wasDragging) {
+                        mapState.x = (pts[0].clientX - r.left) - sVX;
+                        mapState.y = (pts[0].clientY - r.top) - sVY;
+                        requestMapUpdate();
+                    }
+                }
+            });
+
+            const handlePointerUp = (e) => {
+                activePointers.delete(e.pointerId);
+                if (activePointers.size > 0) syncAnchors();
+            };
+
+            window.addEventListener('pointerup', handlePointerUp);
+            window.addEventListener('pointercancel', handlePointerUp);
         }
         
         init();
