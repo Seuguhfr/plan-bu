@@ -64,7 +64,7 @@
         .action-bar.visible { transform: translateY(0); }
         .action-info { display: flex; flex-direction: column; }
         .action-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
-        .action-subtitle { font-size: 13px; color: #64748b; }
+        .action-subtitle { font-size: 13px; color: #64748b; display: flex; align-items: center; gap: 6px; }
         .action-btn { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(37,99,235,.3); cursor: pointer; }
         .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #ef4444; color: #fff; padding: 10px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 2000; box-shadow: 0 10px 15px -3px rgba(0,0,0,.2); }
         .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -124,7 +124,7 @@
 <body>
     <div class="header">
         <div class="title-container">
-            <div class="title">📚 Plan BU Saint-Serge</div>
+            <div class="title">Plan BU Saint-Serge</div>
             <a href="https://github.com/Seuguhfr/plan-bu" target="_blank" class="github-link">
                 <svg class="github-icon" viewBox="0 0 16 16">
                     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
@@ -145,7 +145,10 @@
             </div>
         </div>
         <div class="legend-btn-wrap">
-            <button class="legend-btn" id="btnOpenLegend">ℹ️ Légende interactive</button>
+            <button class="legend-btn" id="btnOpenLegend">
+                <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Légende interactive
+            </button>
         </div>
     </div>
 
@@ -156,7 +159,10 @@
     </div>
 
     <div class="footer-bar">
-        <a href="https://www.buymeacoffee.com/hdbdt" target="_blank" class="footer-link footer-link-left bmc-footer-link" title="Aider à financer le développement">Me soutenir ☕</a>
+        <a href="https://www.buymeacoffee.com/hdbdt" target="_blank" class="footer-link footer-link-left bmc-footer-link" title="Aider à financer le développement">
+            Me soutenir
+            <svg style="width: 14px; height: 14px; margin-left: 6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+        </a>
         <span class="footer-separator">|</span>
         <a href="https://tally.so/r/vGAPO8" target="_blank" class="footer-link footer-link-right">Une erreur/suggestion ?</a>
     </div>
@@ -260,7 +266,6 @@
             legendModal: document.getElementById('legendModal')
         };
 
-        // --- CACHE API: Fetch image instantly from hardware ---
         async function fetchImageWithCache(url) {
             return new Promise(async (resolve) => {
                 const cacheName = 'bu-map-img-v1';
@@ -271,8 +276,6 @@
                         const blob = await cachedRes.blob();
                         mapImage.src = URL.createObjectURL(blob);
                         mapImage.onload = () => resolve();
-                        
-                        // Background update
                         fetch(url).then(res => {
                             if (res.ok) cache.put(url, res.clone());
                         }).catch(() => {});
@@ -290,7 +293,6 @@
             });
         }
 
-        // --- CACHE API: Fetch seats layout instantly ---
         async function loadConfig() {
             const cachedConfig = localStorage.getItem('bu_config_cache');
             if (cachedConfig) {
@@ -331,12 +333,10 @@
                 els.dp.add(new Option(t.charAt(0).toUpperCase() + t.slice(1), localDate));
             }
 
-            // 1. Instantly render the image from cache
             await fetchImageWithCache(`${API_BASE_URL}/assets/map.webp`);
             mapBaseHeight = 1600 * (mapImage.naturalHeight / mapImage.naturalWidth);
             centerMap();
 
-            // 2. Instantly render the grid from cache
             await loadConfig();
 
             setupPointerEvents();
@@ -352,7 +352,6 @@
             els.btnReset.addEventListener('click', () => { centerMap(); requestRender(); });
             els.btnBook.addEventListener('click', () => { if (appState.selectedSeatId) openBooking(appState.selectedSeatId); });
 
-            // 3. Only the seat availability blocks the UI now
             loadData();
             updateSliderUI();
             startAnimationLoop(); 
@@ -361,16 +360,12 @@
             setInterval(updateTimeMarker, 60000);
         }
 
-        // --- MATH: PHYSICS CLAMPING ---
         function clampMap() {
             const viewW = els.viewport.clientWidth;
             const viewH = els.viewport.clientHeight;
-            
-            // mapState is measured in standard CSS pixels
             const cssMapW = 1600 * mapState.scale;
             const cssMapH = mapBaseHeight * mapState.scale;
             
-            // The map cannot be dragged past the exact center of the viewport
             mapState.x = Math.max((viewW / 2) - cssMapW, Math.min(viewW / 2, mapState.x));
             mapState.y = Math.max((viewH / 2) - cssMapH, Math.min(viewH / 2, mapState.y));
         }
@@ -711,7 +706,7 @@
                 cancelAnimationFrame(inertiaAnimId);
                 mapState.x -= e.deltaX;
                 mapState.y -= e.deltaY;
-                clampMap(); // FIX: Clamp on scroll
+                clampMap();
                 requestRender();
             }, { passive: false });
 
@@ -773,7 +768,7 @@
                     mapState.scale = Math.max(0.1, Math.min(sS * rS, 4));
                     mapState.x = ((pts[0].clientX + pts[1].clientX)/2) - (sVX * rS);
                     mapState.y = ((pts[0].clientY + pts[1].clientY)/2) - (sVY * rS);
-                    clampMap(); // FIX: Clamp on pinch zoom
+                    clampMap();
                     requestRender();
                 } else if (pts.length === 1) {
                     const nowTime = performance.now();
@@ -787,7 +782,7 @@
                         tooltip.classList.remove('visible');
                         mapState.x = pts[0].clientX - sVX;
                         mapState.y = pts[0].clientY - sVY;
-                        clampMap(); // FIX: Clamp on drag
+                        clampMap();
                         requestRender();
                     }
                 }
@@ -801,10 +796,26 @@
                     if (clickedSeat) {
                         appState.selectedSeatId = clickedSeat.id;
                         els.barTitle.innerText = "Place " + clickedSeat.id;
-                        let dets = [];
-                        if(clickedSeat.hasPlug) dets.push("Prise");
-                        if(clickedSeat.hasLight) dets.push("Lampe");
-                        els.barStatus.innerText = dets.length > 0 ? dets.join(' • ') : "Standard";
+                        
+                        // FIX: Rich UI formatting for selected seat availability
+                        let statusHtml = '';
+                        if (clickedSeat.state === 'free') statusHtml += `<span style="color: #10b981; font-weight: 600;">Place libre</span>`;
+                        else if (clickedSeat.state === 'busy') statusHtml += `<span style="color: #ef4444; font-weight: 600;">Place occupée</span>`;
+                        else statusHtml += `<span style="color: #64748b; font-weight: 600;">Données inconnues</span>`;
+
+                        let iconsHtml = '';
+                        if (clickedSeat.hasPlug) {
+                            iconsHtml += `<svg style="width:16px;height:16px;color:var(--plug-color);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="12" height="10" x="6" y="6" rx="2"/><path d="M12 16v6"/></svg>`;
+                        }
+                        if (clickedSeat.hasLight) {
+                            iconsHtml += `<svg style="width:16px;height:16px;color:#eab308;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l4 10H4L8 2Z"/><path d="M12 12v6"/><path d="M8 22h8"/></svg>`;
+                        }
+
+                        if (iconsHtml !== '') {
+                            statusHtml += `<span style="color:#cbd5e1; margin: 0 6px;">|</span> <div style="display:flex; gap:6px; align-items:center;">${iconsHtml}</div>`;
+                        }
+
+                        els.barStatus.innerHTML = statusHtml;
                         els.actionBar.classList.add('visible');
                     } else {
                         appState.selectedSeatId = null;
@@ -835,7 +846,6 @@
                             mapState.x += vX;
                             mapState.y += vY;
                             
-                            // FIX: Clamp math + Velocity Kill 
                             const viewW = els.viewport.clientWidth;
                             const viewH = els.viewport.clientHeight;
                             const cssMapW = 1600 * mapState.scale;
@@ -845,8 +855,6 @@
                             const minY = (viewH / 2) - cssMapH;
                             const maxY = viewH / 2;
 
-                            // If we smack into a boundary wall, kill the momentum instantly 
-                            // so it doesn't grind against the edge
                             if (mapState.x <= minX || mapState.x >= maxX) vX = 0;
                             if (mapState.y <= minY || mapState.y >= maxY) vY = 0;
 
