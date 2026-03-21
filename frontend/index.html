@@ -963,17 +963,29 @@
 
             Object.entries(SEAT_CACHE).forEach(([id, el]) => {
                 const data = AVAILABILITY[id];
+                const currentState = el.dataset.state;
+                let newState;
+
                 if (data) {
                     const isFree = reqSlots.length > 0 && reqSlots.every(r => data.slots.includes(r));
-                    const newState = isFree ? 'is-free' : 'is-busy';
-                    const currentState = el.dataset.state;
+                    newState = isFree ? 'is-free' : 'is-busy';
+                } else {
+                    // BUG FIX: If no data exists, state is unknown. 
+                    newState = 'unknown'; 
+                }
 
-                    // Dirty Check: Only touch the DOM if the state flipped
-                    if (currentState !== newState) {
-                        if (currentState) el.classList.remove(currentState);
-                        el.classList.add(newState);
-                        el.dataset.state = newState; // Save the new state in memory
+                // Dirty Check: Only touch the DOM if the state flipped
+                if (currentState !== newState) {
+                    // Remove old class if it wasn't 'unknown'
+                    if (currentState && currentState !== 'unknown') {
+                        el.classList.remove(currentState);
                     }
+                    // Add new class if it isn't 'unknown' (unknown relies on default .seat CSS)
+                    if (newState !== 'unknown') {
+                        el.classList.add(newState);
+                    }
+                    // Save the new state in memory
+                    el.dataset.state = newState; 
                 }
             });
         }
