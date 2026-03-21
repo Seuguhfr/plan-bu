@@ -296,6 +296,7 @@
         function drawDemo(type = 'default') {
             const dCanvas = document.getElementById('demoCanvas');
             const dCtx = dCanvas.getContext('2d');
+            
             dCtx.clearRect(0, 0, 160, 160);
 
             const pad = 12, gap = 8, size = 64; 
@@ -308,6 +309,7 @@
                 dCtx.fillRect(pad - 4, pad - 4, boxWidth + 8, boxWidth + 8);
                 dCtx.shadowBlur = 0;
             }
+
             if (type === 'plug') {
                 dCtx.strokeStyle = C_PLUG;
                 dCtx.lineWidth = 6;
@@ -315,6 +317,7 @@
             }
 
             const states = ['free', 'busy', 'busy', 'free'];
+            
             if (type === 'unknown') states.fill('unknown');
             if (type === 'busy') states.fill('busy');
             if (type === 'free') states.fill('free');
@@ -603,10 +606,8 @@
             let startX = 0, startY = 0, sD = 0, sS = 1, sVX = 0, sVY = 0;
             let wasDragging = false;
             
-            // PHYSICS STATE FIX
-            let velocityX = 0, velocityY = 0;
-            let lastClientX = 0, lastClientY = 0;
-            let lastMoveTime = 0;
+            // PHYSICS REWRITE: 100ms Momentum history
+            let pointerHistory = [];
             let inertiaAnimId = null;
 
             canvas.addEventListener('wheel', e => {
@@ -619,14 +620,14 @@
 
             canvas.addEventListener('pointerdown', e => {
                 cancelAnimationFrame(inertiaAnimId);
-                velocityX = 0; velocityY = 0;
-                lastMoveTime = performance.now();
-
                 pointers.set(e.pointerId, e);
                 canvas.setPointerCapture(e.pointerId);
+                
                 if (pointers.size === 1) { 
                     startX = e.clientX; startY = e.clientY; 
-                    lastClientX = e.clientX; lastClientY = e.clientY;
+                    pointerHistory = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
+                } else {
+                    pointerHistory = []; // Cancel inertia calculation on pinch zoom
                 }
                 wasDragging = false;
 
@@ -669,7 +670,6 @@
                 const pts = Array.from(pointers.values());
                 if (pts.length === 2) {
                     wasDragging = true;
-                    velocityX = 0; velocityY = 0; // Kill inertia on pinch zoom
                     tooltip.classList.remove('visible');
                     const cD = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
                     const rS = cD / sD;
@@ -678,20 +678,10 @@
                     mapState.y = ((pts[0].clientY + pts[1].clientY)/2) - (sVY * rS);
                     requestRender();
                 } else if (pts.length === 1) {
-                    const now = performance.now();
-                    
-                    // FIX: Track organic, smoothed velocity over time
-                    const dt = now - lastMoveTime;
-                    if (dt > 0) {
-                        const rawVx = (pts[0].clientX - lastClientX);
-                        const rawVy = (pts[0].clientY - lastClientY);
-                        velocityX = (velocityX * 0.4) + (rawVx * 0.6);
-                        velocityY = (velocityY * 0.4) + (rawVy * 0.6);
-                    }
-
-                    lastClientX = pts[0].clientX;
-                    lastClientY = pts[0].clientY;
-                    lastMoveTime = now;
+                    const nowTime = performance.now();
+                    pointerHistory.push({ x: pts[0].clientX, y: pts[0].clientY, t: nowTime });
+                    // Keep only the last 100ms of drag history
+                    pointerHistory = pointerHistory.filter(p => nowTime - p.t <= 100);
 
                     const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
                     if (dist > 5) wasDragging = true;
@@ -707,12 +697,6 @@
 
             const handleUp = e => {
                 pointers.delete(e.pointerId);
-
-                // FIX: Zero velocity if the user held perfectly still right before releasing
-                if (performance.now() - lastMoveTime > 50) {
-                    velocityX = 0;
-                    velocityY = 0;
-                }
                 
                 if (!wasDragging && e.pointerType !== 'mouse' || (!wasDragging && e.pointerType === 'mouse')) {
                     const clickedSeat = getSeatAt(e.clientX, e.clientY);
@@ -731,15 +715,31 @@
                     requestRender();
                 }
 
-                // Apply corrected momentum scrolling on release
+                // FIX: Time-based momentum physics calculation
                 if (wasDragging && pointers.size === 0) {
-                    const friction = 0.92;
+                    const nowTime = performance.now();
+                    pointerHistory = pointerHistory.filter(p => nowTime - p.t <= 100);
+                    
+                    let vX = 0, vY = 0;
+                    if (pointerHistory.length > 1) {
+                        const first = pointerHistory[0];
+                        const last = pointerHistory[pointerHistory.length - 1];
+                        const dt = last.t - first.t;
+                        
+                        // Only apply inertia if they didn't hold their finger still for > 50ms before releasing
+                        if (dt > 0 && (nowTime - last.t) < 50) {
+                            vX = ((last.x - first.x) / dt) * 16.6; // normalized to ~60fps frame delta
+                            vY = ((last.y - first.y) / dt) * 16.6;
+                        }
+                    }
+
+                    const friction = 0.95; // 0.95 feels like native mobile scroll decay
                     const applyInertia = () => {
-                        if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
-                            mapState.x += velocityX;
-                            mapState.y += velocityY;
-                            velocityX *= friction;
-                            velocityY *= friction;
+                        if (Math.abs(vX) > 0.1 || Math.abs(vY) > 0.1) {
+                            mapState.x += vX;
+                            mapState.y += vY;
+                            vX *= friction;
+                            vY *= friction;
                             requestRender();
                             inertiaAnimId = requestAnimationFrame(applyInertia);
                         }
@@ -751,13 +751,6 @@
                     const pts = Array.from(pointers.values());
                     sVX = pts[0].clientX - mapState.x;
                     sVY = pts[0].clientY - mapState.y;
-                    
-                    // FIX: Re-anchor the tracking so the remaining finger doesn't teleport
-                    lastClientX = pts[0].clientX;
-                    lastClientY = pts[0].clientY;
-                    lastMoveTime = performance.now();
-                    velocityX = 0; 
-                    velocityY = 0;
                 }
             };
 
