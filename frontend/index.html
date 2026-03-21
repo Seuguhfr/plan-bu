@@ -68,7 +68,6 @@
         .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #ef4444; color: #fff; padding: 10px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 2000; box-shadow: 0 10px 15px -3px rgba(0,0,0,.2); }
         .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
         
-        /* Restored Footer */
         .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.9); border-top: 1px solid #e2e8f0; display: flex; align-items: stretch; z-index: 500; backdrop-filter: blur(4px); font-size: 13px; }
         .footer-link { flex: 1; display: flex; align-items: center; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); color: #64748b; text-decoration: none; transition: color 0.2s; font-weight: 500; }
         .footer-link:hover { color: var(--primary); }
@@ -78,7 +77,6 @@
         .bmc-footer-link { color: #d97706; font-weight: 600; }
         .bmc-footer-link:hover { color: #b45309; }
         
-        /* Reset zoom button lifted above footer */
         .reset-zoom { display: none; position: absolute; bottom: 60px; right: 20px; background: #fff; border: 1px solid #cbd5e1; padding: 10px; border-radius: 50%; box-shadow: 0 4px 6px rgba(0,0,0,.1); z-index: 100; font-size: 20px; width: 44px; height: 44px; justify-content: center; align-items: center; cursor: pointer; }
 
         .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; padding: 20px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -115,7 +113,7 @@
             .slider-wrap { flex: 1; }
             .time-label { margin-bottom: 0; order: 2; min-width: 85px; text-align: right; }
             .legend-btn-wrap { grid-area: legend; justify-content: flex-end; }
-            .reset-zoom { display: flex; bottom: 70px; } /* Lifted above mobile footer */
+            .reset-zoom { display: flex; bottom: 70px; }
             .modal-body { flex-direction: column-reverse; align-items: center; gap: 20px; max-height: 70vh; overflow-y: auto; }
             .legend-list { width: 100%; }
             .legend-showcase { width: 100%; height: 144px; flex-shrink: 0; box-sizing: border-box; }
@@ -298,13 +296,11 @@
         function drawDemo(type = 'default') {
             const dCanvas = document.getElementById('demoCanvas');
             const dCtx = dCanvas.getContext('2d');
-            
             dCtx.clearRect(0, 0, 160, 160);
 
             const pad = 12, gap = 8, size = 64; 
             const boxWidth = (size * 2) + gap;
 
-            // FIX: Draw the light bounding exactly the seats, matching main map logic
             if (type === 'light') {
                 dCtx.fillStyle = C_LIGHT;
                 dCtx.shadowColor = C_LIGHT;
@@ -312,7 +308,6 @@
                 dCtx.fillRect(pad - 4, pad - 4, boxWidth + 8, boxWidth + 8);
                 dCtx.shadowBlur = 0;
             }
-
             if (type === 'plug') {
                 dCtx.strokeStyle = C_PLUG;
                 dCtx.lineWidth = 6;
@@ -320,7 +315,6 @@
             }
 
             const states = ['free', 'busy', 'busy', 'free'];
-            
             if (type === 'unknown') states.fill('unknown');
             if (type === 'busy') states.fill('busy');
             if (type === 'free') states.fill('free');
@@ -609,9 +603,10 @@
             let startX = 0, startY = 0, sD = 0, sS = 1, sVX = 0, sVY = 0;
             let wasDragging = false;
             
-            // Momentum Physics State
+            // PHYSICS STATE FIX
             let velocityX = 0, velocityY = 0;
             let lastClientX = 0, lastClientY = 0;
+            let lastMoveTime = 0;
             let inertiaAnimId = null;
 
             canvas.addEventListener('wheel', e => {
@@ -625,6 +620,7 @@
             canvas.addEventListener('pointerdown', e => {
                 cancelAnimationFrame(inertiaAnimId);
                 velocityX = 0; velocityY = 0;
+                lastMoveTime = performance.now();
 
                 pointers.set(e.pointerId, e);
                 canvas.setPointerCapture(e.pointerId);
@@ -673,6 +669,7 @@
                 const pts = Array.from(pointers.values());
                 if (pts.length === 2) {
                     wasDragging = true;
+                    velocityX = 0; velocityY = 0; // Kill inertia on pinch zoom
                     tooltip.classList.remove('visible');
                     const cD = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
                     const rS = cD / sD;
@@ -681,11 +678,20 @@
                     mapState.y = ((pts[0].clientY + pts[1].clientY)/2) - (sVY * rS);
                     requestRender();
                 } else if (pts.length === 1) {
-                    // FIX: Track drag velocity per frame for inertia scrolling
-                    velocityX = pts[0].clientX - lastClientX;
-                    velocityY = pts[0].clientY - lastClientY;
+                    const now = performance.now();
+                    
+                    // FIX: Track organic, smoothed velocity over time
+                    const dt = now - lastMoveTime;
+                    if (dt > 0) {
+                        const rawVx = (pts[0].clientX - lastClientX);
+                        const rawVy = (pts[0].clientY - lastClientY);
+                        velocityX = (velocityX * 0.4) + (rawVx * 0.6);
+                        velocityY = (velocityY * 0.4) + (rawVy * 0.6);
+                    }
+
                     lastClientX = pts[0].clientX;
                     lastClientY = pts[0].clientY;
+                    lastMoveTime = now;
 
                     const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
                     if (dist > 5) wasDragging = true;
@@ -701,6 +707,12 @@
 
             const handleUp = e => {
                 pointers.delete(e.pointerId);
+
+                // FIX: Zero velocity if the user held perfectly still right before releasing
+                if (performance.now() - lastMoveTime > 50) {
+                    velocityX = 0;
+                    velocityY = 0;
+                }
                 
                 if (!wasDragging && e.pointerType !== 'mouse' || (!wasDragging && e.pointerType === 'mouse')) {
                     const clickedSeat = getSeatAt(e.clientX, e.clientY);
@@ -719,9 +731,9 @@
                     requestRender();
                 }
 
-                // FIX: Trigger momentum scrolling loop on release
+                // Apply corrected momentum scrolling on release
                 if (wasDragging && pointers.size === 0) {
-                    const friction = 0.92; // Adjust for "slickness"
+                    const friction = 0.92;
                     const applyInertia = () => {
                         if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
                             mapState.x += velocityX;
@@ -739,6 +751,13 @@
                     const pts = Array.from(pointers.values());
                     sVX = pts[0].clientX - mapState.x;
                     sVY = pts[0].clientY - mapState.y;
+                    
+                    // FIX: Re-anchor the tracking so the remaining finger doesn't teleport
+                    lastClientX = pts[0].clientX;
+                    lastClientY = pts[0].clientY;
+                    lastMoveTime = performance.now();
+                    velocityX = 0; 
+                    velocityY = 0;
                 }
             };
 
