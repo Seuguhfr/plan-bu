@@ -67,9 +67,20 @@
         .action-btn { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(37,99,235,.3); cursor: pointer; }
         .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #ef4444; color: #fff; padding: 10px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 2000; box-shadow: 0 10px 15px -3px rgba(0,0,0,.2); }
         .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+        
+        /* Restored Footer */
+        .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.9); border-top: 1px solid #e2e8f0; display: flex; align-items: stretch; z-index: 500; backdrop-filter: blur(4px); font-size: 13px; }
+        .footer-link { flex: 1; display: flex; align-items: center; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); color: #64748b; text-decoration: none; transition: color 0.2s; font-weight: 500; }
+        .footer-link:hover { color: var(--primary); }
+        .footer-link-left { justify-content: flex-end; padding-right: 8px; }
+        .footer-link-right { justify-content: flex-start; padding-left: 8px; }
+        .footer-separator { display: flex; align-items: center; color: #cbd5e1; user-select: none; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+        .bmc-footer-link { color: #d97706; font-weight: 600; }
+        .bmc-footer-link:hover { color: #b45309; }
+        
+        /* Reset zoom button lifted above footer */
         .reset-zoom { display: none; position: absolute; bottom: 60px; right: 20px; background: #fff; border: 1px solid #cbd5e1; padding: 10px; border-radius: 50%; box-shadow: 0 4px 6px rgba(0,0,0,.1); z-index: 100; font-size: 20px; width: 44px; height: 44px; justify-content: center; align-items: center; cursor: pointer; }
 
-        /* Modal Aggressive Text Selection Reset */
         .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; padding: 20px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .modal-overlay.visible { opacity: 1; pointer-events: auto; }
         .modal-content { background: #fff; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; }
@@ -104,7 +115,7 @@
             .slider-wrap { flex: 1; }
             .time-label { margin-bottom: 0; order: 2; min-width: 85px; text-align: right; }
             .legend-btn-wrap { grid-area: legend; justify-content: flex-end; }
-            .reset-zoom { display: flex; }
+            .reset-zoom { display: flex; bottom: 70px; } /* Lifted above mobile footer */
             .modal-body { flex-direction: column-reverse; align-items: center; gap: 20px; max-height: 70vh; overflow-y: auto; }
             .legend-list { width: 100%; }
             .legend-showcase { width: 100%; height: 144px; flex-shrink: 0; box-sizing: border-box; }
@@ -138,6 +149,12 @@
         <canvas id="mapCanvas"></canvas>
         <div id="canvasTooltip"></div>
         <button class="reset-zoom" id="btnReset">⛶</button>
+    </div>
+
+    <div class="footer-bar">
+        <a href="https://www.buymeacoffee.com/hdbdt" target="_blank" class="footer-link footer-link-left bmc-footer-link" title="Aider à financer le développement">Me soutenir ☕</a>
+        <span class="footer-separator">|</span>
+        <a href="https://tally.so/r/vGAPO8" target="_blank" class="footer-link footer-link-right">Une erreur/suggestion ?</a>
     </div>
 
     <div id="actionBar" class="action-bar">
@@ -278,28 +295,30 @@
             startAnimationLoop(); 
         }
 
-        // --- Demo Canvas Rendering Logic ---
         function drawDemo(type = 'default') {
             const dCanvas = document.getElementById('demoCanvas');
             const dCtx = dCanvas.getContext('2d');
             
             dCtx.clearRect(0, 0, 160, 160);
 
+            const pad = 12, gap = 8, size = 64; 
+            const boxWidth = (size * 2) + gap;
+
+            // FIX: Draw the light bounding exactly the seats, matching main map logic
             if (type === 'light') {
                 dCtx.fillStyle = C_LIGHT;
                 dCtx.shadowColor = C_LIGHT;
-                dCtx.shadowBlur = 40; 
-                dCtx.fillRect(0, 0, 160, 160);
+                dCtx.shadowBlur = 20; 
+                dCtx.fillRect(pad - 4, pad - 4, boxWidth + 8, boxWidth + 8);
                 dCtx.shadowBlur = 0;
             }
 
             if (type === 'plug') {
                 dCtx.strokeStyle = C_PLUG;
                 dCtx.lineWidth = 6;
-                dCtx.strokeRect(3, 3, 154, 154);
+                dCtx.strokeRect(pad - 6, pad - 6, boxWidth + 12, boxWidth + 12);
             }
 
-            const pad = 12, gap = 8, size = 64; 
             const states = ['free', 'busy', 'busy', 'free'];
             
             if (type === 'unknown') states.fill('unknown');
@@ -324,7 +343,6 @@
                 dCtx.roundRect(x, y, size, size, 4);
                 dCtx.fill();
                 
-                // Add the inner glow for free seats exactly like the main map
                 if (states[i] === 'free') {
                     dCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
                     dCtx.stroke();
@@ -471,7 +489,6 @@
             canvas.width = canvas.clientWidth * dpr;
             canvas.height = canvas.clientHeight * dpr;
             
-            // Fix #1: Flood fill the canvas immediately to prevent black flash
             ctx.fillStyle = C_BG;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
@@ -550,7 +567,6 @@
                     ctx.shadowBlur = 0;
                 }
 
-                // Fix #2: Skeleton math draws solid grey first, then pulses high-opacity white over it
                 if (s.state === 'skeleton') {
                     ctx.fillStyle = C_UNKNOWN;
                     ctx.beginPath();
@@ -592,18 +608,30 @@
             const pointers = new Map();
             let startX = 0, startY = 0, sD = 0, sS = 1, sVX = 0, sVY = 0;
             let wasDragging = false;
+            
+            // Momentum Physics State
+            let velocityX = 0, velocityY = 0;
+            let lastClientX = 0, lastClientY = 0;
+            let inertiaAnimId = null;
 
             canvas.addEventListener('wheel', e => {
                 e.preventDefault();
+                cancelAnimationFrame(inertiaAnimId);
                 mapState.x -= e.deltaX;
                 mapState.y -= e.deltaY;
                 requestRender();
             }, { passive: false });
 
             canvas.addEventListener('pointerdown', e => {
+                cancelAnimationFrame(inertiaAnimId);
+                velocityX = 0; velocityY = 0;
+
                 pointers.set(e.pointerId, e);
                 canvas.setPointerCapture(e.pointerId);
-                if (pointers.size === 1) { startX = e.clientX; startY = e.clientY; }
+                if (pointers.size === 1) { 
+                    startX = e.clientX; startY = e.clientY; 
+                    lastClientX = e.clientX; lastClientY = e.clientY;
+                }
                 wasDragging = false;
 
                 const pts = Array.from(pointers.values());
@@ -653,8 +681,15 @@
                     mapState.y = ((pts[0].clientY + pts[1].clientY)/2) - (sVY * rS);
                     requestRender();
                 } else if (pts.length === 1) {
+                    // FIX: Track drag velocity per frame for inertia scrolling
+                    velocityX = pts[0].clientX - lastClientX;
+                    velocityY = pts[0].clientY - lastClientY;
+                    lastClientX = pts[0].clientX;
+                    lastClientY = pts[0].clientY;
+
                     const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
                     if (dist > 5) wasDragging = true;
+                    
                     if (wasDragging) {
                         tooltip.classList.remove('visible');
                         mapState.x = pts[0].clientX - sVX;
@@ -682,6 +717,22 @@
                         els.actionBar.classList.remove('visible');
                     }
                     requestRender();
+                }
+
+                // FIX: Trigger momentum scrolling loop on release
+                if (wasDragging && pointers.size === 0) {
+                    const friction = 0.92; // Adjust for "slickness"
+                    const applyInertia = () => {
+                        if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
+                            mapState.x += velocityX;
+                            mapState.y += velocityY;
+                            velocityX *= friction;
+                            velocityY *= friction;
+                            requestRender();
+                            inertiaAnimId = requestAnimationFrame(applyInertia);
+                        }
+                    };
+                    inertiaAnimId = requestAnimationFrame(applyInertia);
                 }
 
                 if (pointers.size > 0) {
