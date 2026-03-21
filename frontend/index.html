@@ -39,6 +39,7 @@
         .reload-btn { background: #fff; border: 1px solid #cbd5e1; padding: 6px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #475569; transition: all .2s; }
         .reload-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
         .reload-btn:active { transform: translateY(1px); }
+        
         .controls { flex-shrink: 0; background: #fff; padding: 15px 30px; border-bottom: 1px solid #e2e8f0; display: grid; grid-template-columns: 200px 1fr 200px; gap: 30px; align-items: center; z-index: 40; user-select: none; -webkit-user-select: none; }
         .date-sel { padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; width: 100%; outline: 0; cursor: pointer; }
         .slider-container { display: flex; flex-direction: column; gap: 5px; }
@@ -49,6 +50,7 @@
         .thumb { position: absolute; top: 50%; width: 20px; height: 20px; background: #fff; border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(0,0,0,.2); z-index: 10; pointer-events: none; }
         .now-marker { position: absolute; top: -5px; bottom: -5px; width: 2px; background: red; z-index: 5; pointer-events: none; display: none; transition: left 0.3s ease; }
         .now-label { position: absolute; top: -12px; left: -50%; transform: translateX(-25%); font-size: 10px; color: red; font-weight: 700; }
+        
         .legend-btn-wrap { display: flex; justify-content: flex-end; }
         .legend-btn { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s; }
         .legend-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
@@ -78,8 +80,6 @@
         .bmc-footer-link { color: #d97706; font-weight: 600; }
         .bmc-footer-link:hover { color: #b45309; }
         
-        .reset-zoom { display: none; position: absolute; bottom: 60px; right: 20px; background: #fff; border: 1px solid #cbd5e1; padding: 10px; border-radius: 50%; box-shadow: 0 4px 6px rgba(0,0,0,.1); z-index: 100; font-size: 20px; width: 44px; height: 44px; justify-content: center; align-items: center; cursor: pointer; }
-
         .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; padding: 20px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .modal-overlay.visible { opacity: 1; pointer-events: auto; }
         .modal-content { background: #fff; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; }
@@ -114,7 +114,6 @@
             .slider-wrap { flex: 1; }
             .time-label { margin-bottom: 0; order: 2; min-width: 85px; text-align: right; }
             .legend-btn-wrap { grid-area: legend; justify-content: flex-end; }
-            .reset-zoom { display: flex; bottom: 70px; }
             .modal-body { flex-direction: column-reverse; align-items: center; gap: 20px; max-height: 70vh; overflow-y: auto; }
             .legend-list { width: 100%; }
             .legend-showcase { width: 100%; height: 144px; flex-shrink: 0; box-sizing: border-box; }
@@ -155,7 +154,6 @@
     <div class="viewport" id="viewport">
         <canvas id="mapCanvas"></canvas>
         <div id="canvasTooltip"></div>
-        <button class="reset-zoom" id="btnReset">⛶</button>
     </div>
 
     <div class="footer-bar">
@@ -260,7 +258,6 @@
             barTitle: document.getElementById('barTitle'),
             barStatus: document.getElementById('barStatus'),
             btnBook: document.getElementById('btnBook'),
-            btnReset: document.getElementById('btnReset'),
             btnOpenLegend: document.getElementById('btnOpenLegend'),
             btnCloseLegend: document.getElementById('btnCloseLegend'),
             legendModal: document.getElementById('legendModal')
@@ -343,13 +340,18 @@
             setupSlider();
             setupLegendModal(); 
             
-            els.btnReload.addEventListener('click', () => loadData(true));
+            // Reload button triggers recenter, render, and fresh fetch
+            els.btnReload.addEventListener('click', () => { 
+                centerMap(); 
+                requestRender(); 
+                loadData(true); 
+            });
+            
             els.dp.addEventListener('change', () => { 
                 updateSliderUI(); 
                 loadData(); 
                 updateTimeMarker();
             });
-            els.btnReset.addEventListener('click', () => { centerMap(); requestRender(); });
             els.btnBook.addEventListener('click', () => { if (appState.selectedSeatId) openBooking(appState.selectedSeatId); });
 
             loadData();
@@ -797,7 +799,6 @@
                         appState.selectedSeatId = clickedSeat.id;
                         els.barTitle.innerText = "Place " + clickedSeat.id;
                         
-                        // FIX: Rich UI formatting for selected seat availability
                         let statusHtml = '';
                         if (clickedSeat.state === 'free') statusHtml += `<span style="color: #10b981; font-weight: 600;">Place libre</span>`;
                         else if (clickedSeat.state === 'busy') statusHtml += `<span style="color: #ef4444; font-weight: 600;">Place occupée</span>`;
