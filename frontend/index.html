@@ -7,7 +7,6 @@
     <link rel="icon" type="image/png" href="https://i.goopics.net/mghcvl.png">
     <title>Plan BU Saint-Serge</title>
     <style>
-        /* CSS Variables kept for UI, Canvas will parse them for drawing */
         :root {
             --primary: #2563eb;
             --bg: #f8fafc;
@@ -30,7 +29,6 @@
             overscroll-behavior: none;
         }
 
-        /* --- Header & Controls styling remain unchanged --- */
         .header { flex-shrink: 0; z-index: 50; background: #fff; padding: 12px 30px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.05); padding-top: max(12px, env(safe-area-inset-top)); }
         .title { font-weight: 700; color: #1e293b; font-size: 20px; letter-spacing: -.5px; }
         .title-container { display: flex; align-items: center; gap: 10px; }
@@ -51,47 +49,16 @@
         .now-marker { position: absolute; top: -5px; bottom: -5px; width: 2px; background: red; z-index: 5; pointer-events: none; display: none; }
         .now-label { position: absolute; top: -12px; left: -50%; transform: translateX(-25%); font-size: 10px; color: red; font-weight: 700; }
         .legend-btn-wrap { display: flex; justify-content: flex-end; }
-        .legend-btn { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+        .legend-btn { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s; }
+        .legend-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
         
-        /* Canvas specific styling */
-        .viewport {
-            flex: 1;
-            position: relative;
-            background: #e2e8f0;
-            overflow: hidden; /* No more DOM scrolling */
-            touch-action: none; 
-            cursor: grab;
-        }
+        .viewport { flex: 1; position: relative; background: #e2e8f0; overflow: hidden; touch-action: none; cursor: grab; }
         .viewport:active { cursor: grabbing; }
+        canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-        }
-
-        /* Floating Tooltip */
-        #canvasTooltip {
-            position: fixed;
-            background: var(--tooltip-bg);
-            color: #fff;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 600;
-            white-space: nowrap;
-            pointer-events: none;
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
-            transform: translate(-50%, -100%);
-            margin-top: -10px;
-            opacity: 0;
-            transition: opacity 0.15s ease;
-        }
+        #canvasTooltip { position: fixed; background: var(--tooltip-bg); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 14px; font-weight: 600; white-space: nowrap; pointer-events: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0, 0, 0, .3); transform: translate(-50%, -100%); margin-top: -10px; opacity: 0; transition: opacity 0.15s ease; }
         #canvasTooltip.visible { opacity: 1; }
 
-        /* Action bar & UI overlays */
         .action-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 20px 24px; box-shadow: 0 -4px 20px rgba(0,0,0,.15); transform: translateY(110%); transition: transform .3s cubic-bezier(.16, 1, .3, 1); z-index: 9999; display: flex; justify-content: space-between; align-items: center; border-top-left-radius: 16px; border-top-right-radius: 16px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
         .action-bar.visible { transform: translateY(0); }
         .action-info { display: flex; flex-direction: column; }
@@ -102,7 +69,35 @@
         .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
         .reset-zoom { display: none; position: absolute; bottom: 60px; right: 20px; background: #fff; border: 1px solid #cbd5e1; padding: 10px; border-radius: 50%; box-shadow: 0 4px 6px rgba(0,0,0,.1); z-index: 100; font-size: 20px; width: 44px; height: 44px; justify-content: center; align-items: center; cursor: pointer; }
 
-        /* Mobile Adjustments */
+        /* Restored Legend Modal CSS */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; padding: 20px; }
+        .modal-overlay.visible { opacity: 1; pointer-events: auto; }
+        .modal-content { background: #fff; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 18px; color: #1e293b; }
+        .modal-close { background: transparent; border: none; font-size: 24px; color: #64748b; cursor: pointer; padding: 4px; border-radius: 6px; line-height: 1; transition: all 0.2s; }
+        .modal-close:hover { background: #f1f5f9; color: #ef4444; }
+        .modal-body { display: flex; padding: 24px; gap: 30px; }
+        .legend-list { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .leg-interactive { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s; color: #475569; font-weight: 500; font-size: 14px; user-select: none; }
+        .leg-interactive:hover { background: #f1f5f9; color: #1e293b; }
+        .swatch { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
+        .sw-plug { border: 2px solid var(--plug-color); }
+        .sw-light { background: #fef08a; border: 1px solid #eab308; }
+        .sw-unknown { background: var(--seat-unknown); }
+        .sw-busy { background: var(--seat-busy); }
+        .sw-free { background: var(--seat-free); }
+        .legend-showcase { width: 140px; background: #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 20px; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05); }
+        
+        /* Demo box styles for the modal */
+        .demo-box { display: grid; gap: 4px; position: relative !important; width: 80px !important; height: 80px !important; grid-template-columns: 1fr 1fr !important; grid-template-rows: 1fr 1fr !important; border-radius: 3px; }
+        .demo-seat { width: 100% !important; height: 100% !important; border-radius: 6px !important; pointer-events: none !important; border: 1px solid var(--seat-border); background: var(--seat-unknown); }
+        .demo-seat.is-busy { background: var(--seat-busy); }
+        .demo-seat.is-free { background: var(--seat-free); box-shadow: inset 0 0 4px rgba(255, 255, 255, .4); }
+        .demo-box.has-plug::after { content: ""; position: absolute; inset: -3px; border: 3px solid var(--plug-color); border-radius: 5px; pointer-events: none; }
+        .demo-box.has-light { background: var(--light-glow); box-shadow: 0 0 20px var(--light-glow); }
+
         @media (max-width: 768px) {
             .header { padding: 10px 15px; padding-top: max(10px, env(safe-area-inset-top)); }
             .title { font-size: 16px; }
@@ -116,6 +111,9 @@
             .time-label { margin-bottom: 0; order: 2; min-width: 85px; text-align: right; }
             .legend-btn-wrap { grid-area: legend; justify-content: flex-end; }
             .reset-zoom { display: flex; }
+            .modal-body { flex-direction: column-reverse; align-items: center; gap: 20px; max-height: 70vh; overflow-y: auto; }
+            .legend-list { width: 100%; }
+            .legend-showcase { width: 100%; height: 144px; flex-shrink: 0; box-sizing: border-box; }
         }
     </style>
 </head>
@@ -157,19 +155,42 @@
     </div>
     <div id="toast" class="toast">⚠️ Données indisponibles</div>
 
+    <div id="legendModal" class="modal-overlay">
+        <div class="modal-content" id="legendModalContent">
+            <div class="modal-header">
+                <h3>Comprendre le plan</h3>
+                <button class="modal-close" id="btnCloseLegend">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="legend-list">
+                    <div class="leg-interactive" data-type="unknown"><div class="swatch sw-unknown"></div> Données inconnues</div>
+                    <div class="leg-interactive" data-type="busy"><div class="swatch sw-busy"></div> Place occupée</div>
+                    <div class="leg-interactive" data-type="free"><div class="swatch sw-free"></div> Place libre</div>
+                    <div class="leg-interactive" data-type="plug"><div class="swatch sw-plug"></div> Prises individuelles</div>
+                    <div class="leg-interactive" data-type="light"><div class="swatch sw-light"></div> Lampe de bureau</div>
+                </div>
+                <div class="legend-showcase">
+                    <div id="demoBox" class="demo-box">
+                        <div class="demo-seat"></div><div class="demo-seat"></div>
+                        <div class="demo-seat"></div><div class="demo-seat"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE_URL = "https://plan-bu-backend.hdbdt1597-cloudflare.workers.dev";
         const SITE_SLUG = "bua-st-serge";
 
-        // Global State
         const MIN_HOUR = 8, MAX_HOUR = 22;
         const nowH = new Date().getHours();
         
         let LOCATIONS = {};
         let AVAILABILITY = {};
-        let SEATS = []; // Flat array of mathematical seat bounds
+        let SEATS = []; 
         let mapImage = new Image();
-        let mapBaseHeight = 1600; // Will be updated when image loads
+        let mapBaseHeight = 1600; 
         
         let hoveredSeatId = null;
         let isFetchingData = true;
@@ -188,15 +209,13 @@
             }
         });
 
-        // Canvas Setup
         const canvas = document.getElementById('mapCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false }); // alpha:false optimizes performance
+        const ctx = canvas.getContext('2d', { alpha: false }); 
         const tooltip = document.getElementById('canvasTooltip');
         
         let mapState = { x: 0, y: 0, scale: 1 };
         let dpr = window.devicePixelRatio || 1;
 
-        // Colors (Parsed from CSS)
         const C_BG = '#f8fafc';
         const C_UNKNOWN = '#cbd5e1';
         const C_BUSY = '#64748b';
@@ -217,20 +236,21 @@
             thE: document.getElementById('thE'),
             lblStart: document.getElementById('lblStart'),
             lblEnd: document.getElementById('lblEnd'),
-            nowMarker: document.getElementById('nowMarker'),
             viewport: document.getElementById('viewport'),
             actionBar: document.getElementById('actionBar'),
             barTitle: document.getElementById('barTitle'),
             barStatus: document.getElementById('barStatus'),
             btnBook: document.getElementById('btnBook'),
-            btnReset: document.getElementById('btnReset')
+            btnReset: document.getElementById('btnReset'),
+            btnOpenLegend: document.getElementById('btnOpenLegend'),
+            btnCloseLegend: document.getElementById('btnCloseLegend'),
+            legendModal: document.getElementById('legendModal')
         };
 
         async function init() {
             resizeCanvas();
             window.addEventListener('resize', () => { resizeCanvas(); requestRender(); });
 
-            // Setup Datepicker
             const today = new Date();
             for (let i = 0; i < 4; i++) {
                 let d = new Date(today);
@@ -240,7 +260,6 @@
                 els.dp.add(new Option(t.charAt(0).toUpperCase() + t.slice(1), localDate));
             }
 
-            // Load Map Image
             mapImage.src = `${API_BASE_URL}/assets/map.webp`;
             await new Promise(r => mapImage.onload = r);
             mapBaseHeight = 1600 * (mapImage.naturalHeight / mapImage.naturalWidth);
@@ -256,6 +275,7 @@
 
             setupPointerEvents();
             setupSlider();
+            setupLegendModal(); // Restored call
             
             els.btnReload.addEventListener('click', () => loadData(true));
             els.dp.addEventListener('change', () => { updateSliderUI(); loadData(); });
@@ -264,10 +284,49 @@
 
             loadData();
             updateSliderUI();
-            startAnimationLoop(); // Starts the skeleton loop
+            startAnimationLoop(); 
         }
 
-        // --- Core Math Engine (Flattening grid to absolute coordinates) ---
+        // Restored Legend Logic
+        function setupLegendModal() {
+            els.btnOpenLegend.addEventListener('click', () => els.legendModal.classList.add('visible'));
+            els.btnCloseLegend.addEventListener('click', () => els.legendModal.classList.remove('visible'));
+            els.legendModal.addEventListener('click', (e) => {
+                if (e.target === els.legendModal) els.legendModal.classList.remove('visible');
+            });
+
+            const demoBox = document.getElementById('demoBox');
+            const demoSeats = demoBox.querySelectorAll('.demo-seat');
+            const interactives = document.querySelectorAll('.leg-interactive');
+
+            const resetDemo = () => {
+                demoBox.className = 'demo-box';
+                demoSeats[0].className = 'demo-seat is-free';
+                demoSeats[1].className = 'demo-seat is-busy';
+                demoSeats[2].className = 'demo-seat is-busy';
+                demoSeats[3].className = 'demo-seat is-free';
+            };
+
+            interactives.forEach(item => {
+                const type = item.dataset.type;
+                item.addEventListener('pointerenter', () => {
+                    demoBox.className = 'demo-box';
+                    demoSeats[0].className = 'demo-seat is-free';
+                    demoSeats[1].className = 'demo-seat is-busy';
+                    demoSeats[2].className = 'demo-seat is-busy';
+                    demoSeats[3].className = 'demo-seat is-free';
+
+                    if (type === 'unknown') demoSeats.forEach(s => s.className = 'demo-seat');
+                    else if (type === 'busy') demoSeats.forEach(s => s.className = 'demo-seat is-busy');
+                    else if (type === 'free') demoSeats.forEach(s => s.className = 'demo-seat is-free');
+                    else if (type === 'plug') demoBox.classList.add('has-plug');
+                    else if (type === 'light') demoBox.classList.add('has-light');
+                });
+                item.addEventListener('pointerleave', resetDemo);
+            });
+            resetDemo();
+        }
+
         function buildHitGrid() {
             SEATS = [];
             const BASE_W = 1600;
@@ -284,10 +343,8 @@
                     for (let i = 0; i < c; i++) ids.push((parseInt(start) + i).toString());
                 } else return;
 
-                const count = ids.length;
-                if (count === 0) return;
+                if (ids.length === 0) return;
 
-                // Box absolute boundaries in 1600x map coordinates
                 const boxX = (x / 100) * BASE_W;
                 const boxY = (y / 100) * BASE_H;
                 const boxW = (w / 100) * BASE_W;
@@ -297,19 +354,16 @@
                 let cols = 1, rows = 1;
                 
                 if (direction === 'horizontal') {
-                    rows = isDouble ? 2 : 1; 
-                    cols = isDouble ? Math.ceil(count / 2) : count;
+                    rows = isDouble ? 2 : 1; cols = isDouble ? Math.ceil(ids.length / 2) : ids.length;
                 } else {
-                    cols = isDouble ? 2 : 1; 
-                    rows = isDouble ? Math.ceil(count / 2) : count;
+                    cols = isDouble ? 2 : 1; rows = isDouble ? Math.ceil(ids.length / 2) : ids.length;
                 }
 
                 if (isDouble) {
-                    const m = Math.ceil(count / 2);
+                    const m = Math.ceil(ids.length / 2);
                     ids = invert ? [...ids.slice(m).reverse(), ...ids.slice(0, m)] : [...ids.slice(0, m), ...ids.slice(m).reverse()];
                 } else if (invert) ids.reverse();
 
-                // Gap simulation (2px at 1600px scale)
                 const GAP = 2;
                 const seatW = (boxW - (GAP * (cols - 1))) / cols;
                 const seatH = (boxH - (GAP * (rows - 1))) / rows;
@@ -318,24 +372,16 @@
                     let col = direction === 'horizontal' ? (index % cols) : Math.floor(index / rows);
                     let row = direction === 'horizontal' ? Math.floor(index / cols) : (index % rows);
 
-                    const sX = boxX + (col * (seatW + GAP));
-                    const sY = boxY + (row * (seatH + GAP));
-
                     SEATS.push({
-                        id: seatId,
-                        boxStartId: ids[0],
-                        label: label || seatId,
-                        x: sX, y: sY, w: seatW, h: seatH,
-                        boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, // For group glows
-                        state: 'skeleton',
-                        hasPlug: false,
-                        hasLight: false
+                        id: seatId, boxStartId: ids[0], label: label || seatId,
+                        x: boxX + (col * (seatW + GAP)), y: boxY + (row * (seatH + GAP)), w: seatW, h: seatH,
+                        boxX: boxX, boxY: boxY, boxW: boxW, boxH: boxH, 
+                        state: 'skeleton', hasPlug: false, hasLight: false
                     });
                 });
             });
         }
 
-        // --- State Management ---
         async function loadData(force = false) {
             isFetchingData = true;
             startAnimationLoop();
@@ -381,11 +427,7 @@
                 const d = AVAILABILITY[seat.id];
                 const gD = AVAILABILITY[seat.boxStartId];
                 
-                if (gD) {
-                    seat.hasPlug = !!gD.hasPlug;
-                    seat.hasLight = !!gD.hasLight;
-                }
-
+                if (gD) { seat.hasPlug = !!gD.hasPlug; seat.hasLight = !!gD.hasLight; }
                 if (d) {
                     const isFree = reqSlots.length > 0 && reqSlots.every(r => d.slots.includes(r));
                     seat.state = isFree ? 'free' : 'busy';
@@ -395,7 +437,6 @@
             });
         }
 
-        // --- Canvas Rendering Engine ---
         let renderPending = false;
         let animId = null;
 
@@ -434,10 +475,8 @@
             ctx.fillStyle = C_BG;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Set World Transform
             ctx.setTransform(mapState.scale * dpr, 0, 0, mapState.scale * dpr, mapState.x * dpr, mapState.y * dpr);
 
-            // 1. Draw Image Background
             if (mapImage.complete) {
                 ctx.drawImage(mapImage, 0, 0, 1600, mapBaseHeight);
             }
@@ -446,7 +485,6 @@
             const drawnPlugs = new Set();
             const drawnLights = new Set();
 
-            // 2. Draw Group Features (Plugs & Lights behind seats)
             ctx.lineWidth = 3;
             SEATS.forEach(s => {
                 if (s.hasPlug && !drawnPlugs.has(s.boxStartId)) {
@@ -459,35 +497,21 @@
                     ctx.shadowColor = C_LIGHT;
                     ctx.shadowBlur = 20;
                     ctx.fillRect(s.boxX, s.boxY, s.boxW, s.boxH);
-                    ctx.shadowBlur = 0; // Reset
+                    ctx.shadowBlur = 0; 
                     drawnLights.add(s.boxStartId);
                 }
             });
 
-            // 3. Draw Individual Seats
             ctx.lineWidth = 1;
             ctx.strokeStyle = C_BORDER;
 
             SEATS.forEach(s => {
-                let fill = C_UNKNOWN;
                 let scaleOffset = 0;
                 let isSelected = appState.selectedSeatId === s.id;
                 let isHovered = hoveredSeatId === s.id;
 
-                if (s.state === 'busy') fill = C_BUSY;
-                if (s.state === 'free') fill = C_FREE;
-                
-                // Skeleton Pulse Math
-                if (s.state === 'skeleton') {
-                    // Sine wave based on time and diagonal position to simulate CSS delay
-                    const delayCalc = ((100 - (s.x/16)) + (100 - (s.y/(mapBaseHeight/100))));
-                    const phase = (now / 1500 * Math.PI * 2) - (delayCalc * 0.05);
-                    const alpha = (Math.sin(phase) + 1) / 2; // 0 to 1
-                    fill = `rgba(255, 255, 255, ${alpha * 0.4})`; 
-                }
-
                 if (isSelected || isHovered) {
-                    scaleOffset = -2; // Grow visually
+                    scaleOffset = -2;
                     ctx.strokeStyle = C_SELECT;
                     ctx.shadowColor = 'rgba(0,0,0,0.2)';
                     ctx.shadowBlur = 6;
@@ -496,7 +520,23 @@
                     ctx.shadowBlur = 0;
                 }
 
-                ctx.fillStyle = fill;
+                // FIX: Skeleton math now draws solid grey first, then pulses white over it
+                if (s.state === 'skeleton') {
+                    ctx.fillStyle = C_UNKNOWN;
+                    ctx.beginPath();
+                    ctx.roundRect(s.x + scaleOffset, s.y + scaleOffset, s.w - (scaleOffset*2), s.h - (scaleOffset*2), 2);
+                    ctx.fill();
+
+                    const delayCalc = ((100 - (s.x/16)) + (100 - (s.y/(mapBaseHeight/100))));
+                    const phase = (now / 1500 * Math.PI * 2) - (delayCalc * 0.05);
+                    const alpha = (Math.sin(phase) + 1) / 2;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+                } else {
+                    if (s.state === 'busy') ctx.fillStyle = C_BUSY;
+                    else if (s.state === 'free') ctx.fillStyle = C_FREE;
+                    else ctx.fillStyle = C_UNKNOWN;
+                }
+
                 ctx.beginPath();
                 ctx.roundRect(s.x + scaleOffset, s.y + scaleOffset, s.w - (scaleOffset*2), s.h - (scaleOffset*2), 2);
                 ctx.fill();
@@ -504,14 +544,11 @@
             });
         }
 
-        // --- Interaction Physics (Hit Detection & Pan/Zoom) ---
         function getSeatAt(clientX, clientY) {
             const r = canvas.getBoundingClientRect();
-            // Reverse math: Convert screen pixel to world coordinate
             const wX = (clientX - r.left - mapState.x) / mapState.scale;
             const wY = (clientY - r.top - mapState.y) / mapState.scale;
 
-            // Simple loop is incredibly fast for <5000 items
             for (let i = 0; i < SEATS.length; i++) {
                 const s = SEATS[i];
                 if (wX >= s.x && wX <= s.x + s.w && wY >= s.y && wY <= s.y + s.h) {
@@ -526,13 +563,20 @@
             let startX = 0, startY = 0, sD = 0, sS = 1, sVX = 0, sVY = 0;
             let wasDragging = false;
 
+            // Desktop Scroll FIX: Natural wheel panning
+            canvas.addEventListener('wheel', e => {
+                e.preventDefault();
+                mapState.x -= e.deltaX;
+                mapState.y -= e.deltaY;
+                requestRender();
+            }, { passive: false });
+
             canvas.addEventListener('pointerdown', e => {
                 pointers.set(e.pointerId, e);
                 canvas.setPointerCapture(e.pointerId);
                 if (pointers.size === 1) { startX = e.clientX; startY = e.clientY; }
                 wasDragging = false;
 
-                // Sync anchors
                 const pts = Array.from(pointers.values());
                 if (pts.length === 1) {
                     sVX = pts[0].clientX - mapState.x;
@@ -546,7 +590,6 @@
             });
 
             canvas.addEventListener('pointermove', e => {
-                // 1. Tooltip Hover Logic (Only if not dragging/touching)
                 if (pointers.size === 0 && e.pointerType === 'mouse') {
                     const hovered = getSeatAt(e.clientX, e.clientY);
                     const newId = hovered ? hovered.id : null;
@@ -567,7 +610,6 @@
                     }
                 }
 
-                // 2. Pan/Zoom Logic
                 if (!pointers.has(e.pointerId)) return;
                 pointers.set(e.pointerId, e);
                 
@@ -596,7 +638,6 @@
             const handleUp = e => {
                 pointers.delete(e.pointerId);
                 
-                // Hit detection on click
                 if (!wasDragging && e.pointerType !== 'mouse' || (!wasDragging && e.pointerType === 'mouse')) {
                     const clickedSeat = getSeatAt(e.clientX, e.clientY);
                     if (clickedSeat) {
@@ -614,7 +655,6 @@
                     requestRender();
                 }
 
-                // Resync anchor on multi-touch release
                 if (pointers.size > 0) {
                     const pts = Array.from(pointers.values());
                     sVX = pts[0].clientX - mapState.x;
@@ -626,7 +666,6 @@
             canvas.addEventListener('pointercancel', handleUp);
         }
 
-        // --- Slider & Utils ---
         function formatTime(h, isSun) { return (h<10?'0'+h:h) + (isSun?':00':':30'); }
         function showToast(msg, err) { els.toast.innerText = msg; els.toast.style.background = err ? '#ef4444' : '#22c55e'; els.toast.classList.add('visible'); setTimeout(() => els.toast.classList.remove('visible'), 4000); }
         function openBooking(num) { const d = AVAILABILITY[num]; if(!d) return; window.open(`https://affluences.com/fr/sites/${SITE_SLUG}/reservation?type=${d.typeId||"245"}&date=${els.dp.value}&resource=${d.resourceId||num}`, '_blank'); }
