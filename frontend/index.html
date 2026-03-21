@@ -884,10 +884,18 @@
 
         async function loadData(force = false) {
             els.btnReload.style.opacity = '0.5';
+            
+            // Dirty Check: Only reset to skeleton if it isn't already a skeleton
             Object.values(SEAT_CACHE).forEach(el => { 
-                el.classList.remove('is-free', 'is-busy', 'is-selected'); 
-                el.classList.add('skeleton'); 
+                const currentState = el.dataset.state;
+                if (currentState !== 'skeleton') {
+                    if (currentState) el.classList.remove(currentState);
+                    el.classList.remove('is-selected'); // Clear selection
+                    el.classList.add('skeleton'); 
+                    el.dataset.state = 'skeleton';
+                }
             });
+            
             AVAILABILITY = {};
             try {
                 const url = `${API_BASE_URL}/api/load_day?date=${els.dp.value}&force=${force}&t=${Date.now()}`;
@@ -897,8 +905,15 @@
                     return; 
                 }
                 const data = await res.json();
+                
                 if (Object.keys(data).length === 0) {
-                    Object.values(SEAT_CACHE).forEach(el => el.classList.remove('skeleton'));
+                    // Dirty Check: Remove skeleton safely if closed
+                    Object.values(SEAT_CACHE).forEach(el => {
+                        if (el.dataset.state === 'skeleton') {
+                            el.classList.remove('skeleton');
+                            el.dataset.state = 'empty';
+                        }
+                    });
                     showToast("Fermé / Pas de données", true);
                     els.lastUpdate.innerText = "--:--";
                 } else {
@@ -910,7 +925,10 @@
                 }
             } catch (e) {
                 showToast("Erreur connexion", true);
-                Object.values(SEAT_CACHE).forEach(el => el.classList.remove('skeleton'));
+                Object.values(SEAT_CACHE).forEach(el => {
+                    el.classList.remove('skeleton');
+                    el.dataset.state = 'empty';
+                });
             }
             els.btnReload.style.opacity = '1';
         }
@@ -926,25 +944,44 @@
             else for (let h = s; h < e; h++) reqSlots.push(formatTime(h, isSunday));
 
             MAP_BOX_CACHE.forEach(box => {
-                box.el.classList.remove('has-plug', 'has-light');
                 const d = AVAILABILITY[box.startId];
-                if (d) { 
-                    if (d.hasPlug) box.el.classList.add('has-plug'); 
-                    if (d.hasLight) box.el.classList.add('has-light'); 
+                
+                // Dirty Check for Plugs
+                const hasPlug = !!(d && d.hasPlug);
+                if (box.el.dataset.plugState !== String(hasPlug)) {
+                    box.el.classList.toggle('has-plug', hasPlug);
+                    box.el.dataset.plugState = String(hasPlug);
+                }
+
+                // Dirty Check for Lights
+                const hasLight = !!(d && d.hasLight);
+                if (box.el.dataset.lightState !== String(hasLight)) {
+                    box.el.classList.toggle('has-light', hasLight);
+                    box.el.dataset.lightState = String(hasLight);
                 }
             });
 
             Object.entries(SEAT_CACHE).forEach(([id, el]) => {
                 const data = AVAILABILITY[id];
-                el.classList.remove('skeleton', 'is-free', 'is-busy');
                 if (data) {
                     const isFree = reqSlots.length > 0 && reqSlots.every(r => data.slots.includes(r));
-                    el.classList.add(isFree ? 'is-free' : 'is-busy');
+                    const newState = isFree ? 'is-free' : 'is-busy';
+                    const currentState = el.dataset.state;
+
+                    // Dirty Check: Only touch the DOM if the state flipped
+                    if (currentState !== newState) {
+                        if (currentState) el.classList.remove(currentState);
+                        el.classList.add(newState);
+                        el.dataset.state = newState; // Save the new state in memory
+                    }
                 }
             });
         }
 
         function buildMap() {
+            // Create the DocumentFragment to batch DOM insertions
+            const fragment = document.createDocumentFragment();
+
             Object.values(LOCATIONS).forEach(g => {
                 let { id, ids: groupIds, start, end, direction = 'horizontal', label, layout, invert, x, y, w, h } = g;
                 
@@ -966,6 +1003,10 @@
                 box.style.setProperty('--x-pos', x);
                 box.style.setProperty('--y-pos', y);
                 Object.assign(box.style, { left: x + '%', top: y + '%', width: w + '%', height: h + '%' });
+                
+                // Initialize dirty check datasets for the box
+                box.dataset.plugState = 'false';
+                box.dataset.lightState = 'false';
 
                 MAP_BOX_CACHE.push({ el: box, startId: ids[0] });
 
@@ -997,10 +1038,12 @@
                     const safeDomId = seatId.replace(/[^a-zA-Z0-9_-]/g, '-');
                     el.id = 'seat-' + safeDomId;
                     el.dataset.label = label || seatId;
+                    
+                    // Initialize dirty check dataset for the seat
+                    el.dataset.state = 'skeleton'; 
 
                     el.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        // Fix #2: A11y Keyboard Enter/Space bypasses the mouse drag flag
                         const isKeyboardClick = e.clientX === 0 && e.clientY === 0;
                         if (!wasDragging || isKeyboardClick) {
                             selectSeat(seatId, el);
@@ -1010,10 +1053,13 @@
                     SEAT_CACHE[seatId] = el;
                     box.appendChild(el);
                 });
-                els.overlay.appendChild(box);
+                // Append the box to our ghost fragment instead of the live DOM
+                fragment.appendChild(box);
             });
+            
+            // Finally, inject the entire fragment into the DOM in one single operation
+            els.overlay.appendChild(fragment);
         }
-
         function formatTime(h, isSunday) { 
             return (h < 10 ? '0' + h : h) + (isSunday ? ':00' : ':30'); 
         }
