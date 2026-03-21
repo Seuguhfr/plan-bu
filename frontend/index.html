@@ -39,7 +39,6 @@
         .reload-btn { background: #fff; border: 1px solid #cbd5e1; padding: 6px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #475569; transition: all .2s; }
         .reload-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
         .reload-btn:active { transform: translateY(1px); }
-        
         .controls { flex-shrink: 0; background: #fff; padding: 15px 30px; border-bottom: 1px solid #e2e8f0; display: grid; grid-template-columns: 200px 1fr 200px; gap: 30px; align-items: center; z-index: 40; user-select: none; -webkit-user-select: none; }
         .date-sel { padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; width: 100%; outline: 0; cursor: pointer; }
         .slider-container { display: flex; flex-direction: column; gap: 5px; }
@@ -50,7 +49,6 @@
         .thumb { position: absolute; top: 50%; width: 20px; height: 20px; background: #fff; border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(0,0,0,.2); z-index: 10; pointer-events: none; }
         .now-marker { position: absolute; top: -5px; bottom: -5px; width: 2px; background: red; z-index: 5; pointer-events: none; display: none; transition: left 0.3s ease; }
         .now-label { position: absolute; top: -12px; left: -50%; transform: translateX(-25%); font-size: 10px; color: red; font-weight: 700; }
-        
         .legend-btn-wrap { display: flex; justify-content: flex-end; }
         .legend-btn { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s; }
         .legend-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
@@ -62,12 +60,22 @@
         #canvasTooltip { position: fixed; background: var(--tooltip-bg); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 14px; font-weight: 600; white-space: nowrap; pointer-events: none; z-index: 1000; box-shadow: 0 2px 4px rgba(0, 0, 0, .3); transform: translate(-50%, -100%); margin-top: -10px; opacity: 0; transition: opacity 0.15s ease; }
         #canvasTooltip.visible { opacity: 1; }
 
-        .action-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 20px 24px; box-shadow: 0 -4px 20px rgba(0,0,0,.15); transform: translateY(110%); transition: transform .3s cubic-bezier(.16, 1, .3, 1); z-index: 9999; display: flex; justify-content: space-between; align-items: center; border-top-left-radius: 16px; border-top-right-radius: 16px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
-        .action-bar.visible { transform: translateY(0); }
-        .action-info { display: flex; flex-direction: column; }
-        .action-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
-        .action-subtitle { font-size: 13px; color: #64748b; display: flex; align-items: center; gap: 6px; }
-        .action-btn { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(37,99,235,.3); cursor: pointer; }
+        /* Floating Action Bar Redesign */
+        .action-bar { position: fixed; bottom: 70px; left: 50%; width: calc(100% - 40px); max-width: 360px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,.15), 0 8px 10px -6px rgba(0,0,0,.1); transform: translateX(-50%) translateY(150%); transition: transform .3s cubic-bezier(.16, 1, .3, 1); z-index: 9999; display: flex; flex-direction: column; }
+        .action-bar.visible { transform: translateX(-50%) translateY(0); }
+        .action-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .action-title { font-size: 18px; font-weight: 700; color: #1e293b; margin: 0; }
+        .action-close { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 50%; transition: all 0.2s; display: flex; justify-content: center; align-items: center; width: 28px; height: 28px; }
+        .action-close:hover { background: #f1f5f9; color: #1e293b; }
+        .action-details { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .action-availability { font-size: 14px; font-weight: 600; }
+        .action-amenities { display: flex; gap: 8px; align-items: center; }
+        .action-btn { border: none; padding: 14px 24px; border-radius: 10px; font-weight: 600; font-size: 16px; cursor: pointer; width: 100%; transition: all 0.2s; text-align: center; }
+        .action-btn:active { transform: scale(.97); }
+        .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 6px -1px rgba(37,99,235,.3); }
+        .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .btn-disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; pointer-events: none; }
+
         .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #ef4444; color: #fff; padding: 10px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 2000; box-shadow: 0 10px 15px -3px rgba(0,0,0,.2); }
         .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
         
@@ -80,6 +88,8 @@
         .bmc-footer-link { color: #d97706; font-weight: 600; }
         .bmc-footer-link:hover { color: #b45309; }
         
+        .reset-zoom { display: none; position: absolute; bottom: 60px; right: 20px; background: #fff; border: 1px solid #cbd5e1; padding: 10px; border-radius: 50%; box-shadow: 0 4px 6px rgba(0,0,0,.1); z-index: 100; font-size: 20px; width: 44px; height: 44px; justify-content: center; align-items: center; cursor: pointer; }
+
         .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; padding: 20px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .modal-overlay.visible { opacity: 1; pointer-events: auto; }
         .modal-content { background: #fff; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; }
@@ -114,6 +124,8 @@
             .slider-wrap { flex: 1; }
             .time-label { margin-bottom: 0; order: 2; min-width: 85px; text-align: right; }
             .legend-btn-wrap { grid-area: legend; justify-content: flex-end; }
+            .reset-zoom { display: flex; bottom: 85px; }
+            .action-bar { bottom: max(60px, calc(50px + env(safe-area-inset-bottom))); } /* Lifted above mobile footer */
             .modal-body { flex-direction: column-reverse; align-items: center; gap: 20px; max-height: 70vh; overflow-y: auto; }
             .legend-list { width: 100%; }
             .legend-showcase { width: 100%; height: 144px; flex-shrink: 0; box-sizing: border-box; }
@@ -154,6 +166,7 @@
     <div class="viewport" id="viewport">
         <canvas id="mapCanvas"></canvas>
         <div id="canvasTooltip"></div>
+        <button class="reset-zoom" id="btnReset">⛶</button>
     </div>
 
     <div class="footer-bar">
@@ -166,19 +179,28 @@
     </div>
 
     <div id="actionBar" class="action-bar">
-        <div class="action-info">
-            <div class="action-title" id="barTitle">Place --</div>
-            <div class="action-subtitle" id="barStatus">Sélectionnez une place</div>
+        <div class="action-header">
+            <h3 class="action-title" id="barTitle">Place --</h3>
+            <button class="action-close" id="btnCloseAction">
+                <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="action-details">
+            <div class="action-availability" id="barAvailability">Sélectionnez une place</div>
+            <div class="action-amenities" id="barAmenities"></div>
         </div>
         <button class="action-btn" id="btnBook">Réserver</button>
     </div>
+    
     <div id="toast" class="toast">⚠️ Données indisponibles</div>
 
     <div id="legendModal" class="modal-overlay">
         <div class="modal-content" id="legendModalContent">
             <div class="modal-header">
                 <h3>Comprendre le plan</h3>
-                <button class="modal-close" id="btnCloseLegend">×</button>
+                <button class="modal-close" id="btnCloseLegend">
+                    <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </div>
             <div class="modal-body">
                 <div class="legend-list">
@@ -256,8 +278,11 @@
             viewport: document.getElementById('viewport'),
             actionBar: document.getElementById('actionBar'),
             barTitle: document.getElementById('barTitle'),
-            barStatus: document.getElementById('barStatus'),
+            barAvailability: document.getElementById('barAvailability'),
+            barAmenities: document.getElementById('barAmenities'),
+            btnCloseAction: document.getElementById('btnCloseAction'),
             btnBook: document.getElementById('btnBook'),
+            btnReset: document.getElementById('btnReset'),
             btnOpenLegend: document.getElementById('btnOpenLegend'),
             btnCloseLegend: document.getElementById('btnCloseLegend'),
             legendModal: document.getElementById('legendModal')
@@ -340,19 +365,27 @@
             setupSlider();
             setupLegendModal(); 
             
-            // Reload button triggers recenter, render, and fresh fetch
-            els.btnReload.addEventListener('click', () => { 
-                centerMap(); 
-                requestRender(); 
-                loadData(true); 
+            // Allow user to dismiss action bar explicitly
+            els.btnCloseAction.addEventListener('click', () => {
+                appState.selectedSeatId = null;
+                els.actionBar.classList.remove('visible');
+                requestRender();
             });
-            
+
+            els.btnReload.addEventListener('click', () => loadData(true));
             els.dp.addEventListener('change', () => { 
                 updateSliderUI(); 
                 loadData(); 
                 updateTimeMarker();
             });
-            els.btnBook.addEventListener('click', () => { if (appState.selectedSeatId) openBooking(appState.selectedSeatId); });
+            els.btnReset.addEventListener('click', () => { centerMap(); requestRender(); });
+            
+            els.btnBook.addEventListener('click', () => { 
+                // Only allow booking if seat is known (not disabled)
+                if (appState.selectedSeatId && !els.btnBook.classList.contains('btn-disabled')) {
+                    openBooking(appState.selectedSeatId); 
+                }
+            });
 
             loadData();
             updateSliderUI();
@@ -799,24 +832,44 @@
                         appState.selectedSeatId = clickedSeat.id;
                         els.barTitle.innerText = "Place " + clickedSeat.id;
                         
-                        let statusHtml = '';
-                        if (clickedSeat.state === 'free') statusHtml += `<span style="color: #10b981; font-weight: 600;">Place libre</span>`;
-                        else if (clickedSeat.state === 'busy') statusHtml += `<span style="color: #ef4444; font-weight: 600;">Place occupée</span>`;
-                        else statusHtml += `<span style="color: #64748b; font-weight: 600;">Données inconnues</span>`;
+                        // New Smart UI Rendering
+                        let availHtml = '';
+                        let btnClass = '';
+                        let btnText = '';
+
+                        if (clickedSeat.state === 'free') {
+                            availHtml = `<span style="color: #10b981;">Place libre</span>`;
+                            btnClass = 'btn-primary';
+                            btnText = 'Réserver maintenant';
+                        } else if (clickedSeat.state === 'busy') {
+                            availHtml = `<span style="color: #ef4444;">Place occupée</span>`;
+                            btnClass = 'btn-secondary';
+                            btnText = 'Voir les disponibilités';
+                        } else {
+                            availHtml = `<span style="color: #94a3b8;">Données inconnues</span>`;
+                            btnClass = 'btn-disabled';
+                            btnText = 'Indisponible';
+                        }
+                        
+                        els.barAvailability.innerHTML = availHtml;
 
                         let iconsHtml = '';
                         if (clickedSeat.hasPlug) {
-                            iconsHtml += `<svg style="width:16px;height:16px;color:var(--plug-color);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="12" height="10" x="6" y="6" rx="2"/><path d="M12 16v6"/></svg>`;
+                            iconsHtml += `<svg style="width:18px;height:18px;color:var(--plug-color);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="12" height="10" x="6" y="6" rx="2"/><path d="M12 16v6"/></svg>`;
                         }
                         if (clickedSeat.hasLight) {
-                            iconsHtml += `<svg style="width:16px;height:16px;color:#eab308;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l4 10H4L8 2Z"/><path d="M12 12v6"/><path d="M8 22h8"/></svg>`;
+                            iconsHtml += `<svg style="width:18px;height:18px;color:#eab308;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l4 10H4L8 2Z"/><path d="M12 12v6"/><path d="M8 22h8"/></svg>`;
                         }
 
                         if (iconsHtml !== '') {
-                            statusHtml += `<span style="color:#cbd5e1; margin: 0 6px;">|</span> <div style="display:flex; gap:6px; align-items:center;">${iconsHtml}</div>`;
+                            els.barAmenities.innerHTML = `<span style="color:#cbd5e1;">|</span>` + iconsHtml;
+                        } else {
+                            els.barAmenities.innerHTML = '';
                         }
 
-                        els.barStatus.innerHTML = statusHtml;
+                        els.btnBook.className = `action-btn ${btnClass}`;
+                        els.btnBook.innerText = btnText;
+
                         els.actionBar.classList.add('visible');
                     } else {
                         appState.selectedSeatId = null;
