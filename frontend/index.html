@@ -62,7 +62,7 @@
             background-color: #fff;
             border-radius: inherit;
             pointer-events: none;
-            opacity: 0;
+            opacity: 0; /* Ensures it starts gray */
             will-change: opacity;
             animation: sharp-wave-opacity 1.5s infinite linear;
             animation-delay: calc(((100 - var(--x-pos)) + (100 - var(--y-pos))) * 0.008s);
@@ -119,9 +119,18 @@
             .slider-container{grid-area:slider;flex-direction:row;align-items:center;gap:15px}.slider-wrap{flex:1}.time-label{margin-bottom:0;order:2;min-width:85px;text-align:right}
             .legend-btn-wrap { grid-area:legend; justify-content: flex-end; }
             .viewport{padding:0;overflow:hidden;touch-action:none}.reset-zoom{display:flex}
-            .modal-body { flex-direction: column-reverse; align-items: center; gap: 20px; }
+            
+            /* Mobile Modal Fix */
+            .modal-body { 
+                flex-direction: column-reverse; 
+                align-items: center; 
+                gap: 20px; 
+                max-height: 70vh; 
+                overflow-y: auto; 
+                -webkit-overflow-scrolling: touch; 
+            }
             .legend-list { width: 100%; }
-            .legend-showcase { width: 100%; height: 120px; }
+            .legend-showcase { width: 100%; height: 120px; flex-shrink: 0; }
         }
         .title-container { display: flex; align-items: center; gap: 10px; }
         .github-link { color: #1e293b; display: flex; align-items: center; transition: color 0.2s; }
@@ -328,7 +337,7 @@
                     demoSeats[3].className = 'seat demo-seat is-free';
 
                     if(type === 'unknown') {
-                        demoSeats.forEach(s => s.className = 'seat demo-seat'); // Animation removed as requested
+                        demoSeats.forEach(s => s.className = 'seat demo-seat'); 
                     } else if(type === 'busy') {
                         demoSeats.forEach(s => s.className = 'seat demo-seat is-busy');
                     } else if(type === 'free') {
