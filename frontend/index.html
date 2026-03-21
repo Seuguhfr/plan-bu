@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="icon" type="image/png" href="https://i.goopics.net/mghcvl.png">
-    <link rel="apple-touch-icon" href="https://i.goopics.net/mghcvl.png">
+    <link rel="apple-touch-icon" sizes="256x256" href="https://i.goopics.net/mghcvl.png">
     <title>Plan BU Saint-Serge</title>
     <style>
         :root {
@@ -47,7 +47,7 @@
         .track { position: absolute; top: 50%; width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; transform: translateY(-50%); }
         .fill { position: absolute; top: 50%; height: 6px; background: var(--primary); transform: translateY(-50%); border-radius: 3px; }
         .thumb { position: absolute; top: 50%; width: 20px; height: 20px; background: #fff; border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(0,0,0,.2); z-index: 10; pointer-events: none; }
-        .now-marker { position: absolute; top: -5px; bottom: -5px; width: 2px; background: red; z-index: 5; pointer-events: none; display: none; }
+        .now-marker { position: absolute; top: -5px; bottom: -5px; width: 2px; background: red; z-index: 5; pointer-events: none; display: none; transition: left 0.3s ease; }
         .now-label { position: absolute; top: -12px; left: -50%; transform: translateX(-25%); font-size: 10px; color: red; font-weight: 700; }
         .legend-btn-wrap { display: flex; justify-content: flex-end; }
         .legend-btn { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s; }
@@ -125,6 +125,11 @@
     <div class="header">
         <div class="title-container">
             <div class="title">📚 Plan BU Saint-Serge</div>
+            <a href="https://github.com/Seuguhfr/plan-bu" target="_blank" class="github-link">
+                <svg class="github-icon" viewBox="0 0 16 16">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+            </a>
         </div>
         <button class="reload-btn" id="btnReload"><span id="lastUpdate">--:--</span> <span>↻ Actualiser</span></button>
     </div>
@@ -243,6 +248,7 @@
             thE: document.getElementById('thE'),
             lblStart: document.getElementById('lblStart'),
             lblEnd: document.getElementById('lblEnd'),
+            nowMarker: document.getElementById('nowMarker'),
             viewport: document.getElementById('viewport'),
             actionBar: document.getElementById('actionBar'),
             barTitle: document.getElementById('barTitle'),
@@ -285,15 +291,44 @@
             setupLegendModal(); 
             
             els.btnReload.addEventListener('click', () => loadData(true));
-            els.dp.addEventListener('change', () => { updateSliderUI(); loadData(); });
+            
+            // Reattached updateTimeMarker to datepicker change
+            els.dp.addEventListener('change', () => { 
+                updateSliderUI(); 
+                loadData(); 
+                updateTimeMarker();
+            });
+            
             els.btnReset.addEventListener('click', () => { centerMap(); requestRender(); });
             els.btnBook.addEventListener('click', () => { if (appState.selectedSeatId) openBooking(appState.selectedSeatId); });
 
             loadData();
             updateSliderUI();
             startAnimationLoop(); 
+            
+            // Initialize and set interval for the "Maintenant" cursor
+            updateTimeMarker();
+            setInterval(updateTimeMarker, 60000);
         }
 
+        // --- Time Marker Logic ---
+        function updateTimeMarker() {
+            const now = new Date();
+            const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            
+            if (els.dp.value === localToday) {
+                const dec = now.getHours() + (now.getMinutes() / 60); 
+                const start = MIN_HOUR + 0.5;
+                if (dec >= start && dec <= (MAX_HOUR + 0.5)) { 
+                    els.nowMarker.style.left = (((dec - start) / (MAX_HOUR - MIN_HOUR)) * 100) + '%'; 
+                    els.nowMarker.style.display = 'block'; 
+                    return; 
+                }
+            } 
+            els.nowMarker.style.display = 'none';
+        }
+
+        // --- Demo Canvas Rendering Logic ---
         function drawDemo(type = 'default') {
             const dCanvas = document.getElementById('demoCanvas');
             const dCtx = dCanvas.getContext('2d');
@@ -607,7 +642,6 @@
             let startX = 0, startY = 0, sD = 0, sS = 1, sVX = 0, sVY = 0;
             let wasDragging = false;
             
-            // PHYSICS REWRITE: 100ms Momentum history
             let pointerHistory = [];
             let inertiaAnimId = null;
 
@@ -628,7 +662,7 @@
                     startX = e.clientX; startY = e.clientY; 
                     pointerHistory = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
                 } else {
-                    pointerHistory = []; // Cancel inertia calculation on pinch zoom
+                    pointerHistory = []; 
                 }
                 wasDragging = false;
 
@@ -681,7 +715,6 @@
                 } else if (pts.length === 1) {
                     const nowTime = performance.now();
                     pointerHistory.push({ x: pts[0].clientX, y: pts[0].clientY, t: nowTime });
-                    // Keep only the last 100ms of drag history
                     pointerHistory = pointerHistory.filter(p => nowTime - p.t <= 100);
 
                     const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
@@ -716,7 +749,6 @@
                     requestRender();
                 }
 
-                // FIX: Time-based momentum physics calculation
                 if (wasDragging && pointers.size === 0) {
                     const nowTime = performance.now();
                     pointerHistory = pointerHistory.filter(p => nowTime - p.t <= 100);
@@ -727,14 +759,13 @@
                         const last = pointerHistory[pointerHistory.length - 1];
                         const dt = last.t - first.t;
                         
-                        // Only apply inertia if they didn't hold their finger still for > 50ms before releasing
                         if (dt > 0 && (nowTime - last.t) < 50) {
-                            vX = ((last.x - first.x) / dt) * 16.6; // normalized to ~60fps frame delta
+                            vX = ((last.x - first.x) / dt) * 16.6; 
                             vY = ((last.y - first.y) / dt) * 16.6;
                         }
                     }
 
-                    const friction = 0.95; // 0.95 feels like native mobile scroll decay
+                    const friction = 0.95; 
                     const applyInertia = () => {
                         if (Math.abs(vX) > 0.1 || Math.abs(vY) > 0.1) {
                             mapState.x += vX;
