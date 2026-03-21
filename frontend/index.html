@@ -260,6 +260,64 @@
             legendModal: document.getElementById('legendModal')
         };
 
+        // --- CACHE API: Fetch image instantly from hardware ---
+        async function fetchImageWithCache(url) {
+            return new Promise(async (resolve) => {
+                const cacheName = 'bu-map-img-v1';
+                try {
+                    const cache = await caches.open(cacheName);
+                    const cachedRes = await cache.match(url);
+                    if (cachedRes) {
+                        const blob = await cachedRes.blob();
+                        mapImage.src = URL.createObjectURL(blob);
+                        mapImage.onload = () => resolve();
+                        
+                        // Background update
+                        fetch(url).then(res => {
+                            if (res.ok) cache.put(url, res.clone());
+                        }).catch(() => {});
+                    } else {
+                        mapImage.src = url;
+                        mapImage.onload = () => resolve();
+                        fetch(url).then(res => {
+                            if (res.ok) cache.put(url, res.clone());
+                        }).catch(() => {});
+                    }
+                } catch (e) {
+                    mapImage.src = url;
+                    mapImage.onload = () => resolve();
+                }
+            });
+        }
+
+        // --- CACHE API: Fetch seats layout instantly ---
+        async function loadConfig() {
+            const cachedConfig = localStorage.getItem('bu_config_cache');
+            if (cachedConfig) {
+                try {
+                    LOCATIONS = JSON.parse(cachedConfig);
+                    buildHitGrid();
+                    requestRender();
+                } catch (e) {}
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/config`);
+                const freshConfig = await res.json();
+                const freshString = JSON.stringify(freshConfig);
+                
+                if (cachedConfig !== freshString) {
+                    LOCATIONS = freshConfig;
+                    localStorage.setItem('bu_config_cache', freshString);
+                    buildHitGrid();
+                    updateMapState();
+                    requestRender();
+                }
+            } catch (e) {
+                if (!cachedConfig) showToast("Erreur config", true);
+            }
+        }
+
         async function init() {
             resizeCanvas();
             window.addEventListener('resize', () => { resizeCanvas(); requestRender(); });
@@ -273,45 +331,50 @@
                 els.dp.add(new Option(t.charAt(0).toUpperCase() + t.slice(1), localDate));
             }
 
-            mapImage.src = `${API_BASE_URL}/assets/map.webp`;
-            await new Promise(r => mapImage.onload = r);
+            // 1. Instantly render the image from cache
+            await fetchImageWithCache(`${API_BASE_URL}/assets/map.webp`);
             mapBaseHeight = 1600 * (mapImage.naturalHeight / mapImage.naturalWidth);
             centerMap();
 
-            try {
-                const configRes = await fetch(`${API_BASE_URL}/api/config`);
-                LOCATIONS = await configRes.json();
-                buildHitGrid();
-            } catch (e) {
-                showToast("Erreur config", true);
-            }
+            // 2. Instantly render the grid from cache
+            await loadConfig();
 
             setupPointerEvents();
             setupSlider();
             setupLegendModal(); 
             
             els.btnReload.addEventListener('click', () => loadData(true));
-            
-            // Reattached updateTimeMarker to datepicker change
             els.dp.addEventListener('change', () => { 
                 updateSliderUI(); 
                 loadData(); 
                 updateTimeMarker();
             });
-            
             els.btnReset.addEventListener('click', () => { centerMap(); requestRender(); });
             els.btnBook.addEventListener('click', () => { if (appState.selectedSeatId) openBooking(appState.selectedSeatId); });
 
+            // 3. Only the seat availability blocks the UI now
             loadData();
             updateSliderUI();
             startAnimationLoop(); 
             
-            // Initialize and set interval for the "Maintenant" cursor
             updateTimeMarker();
             setInterval(updateTimeMarker, 60000);
         }
 
-        // --- Time Marker Logic ---
+        // --- MATH: PHYSICS CLAMPING ---
+        function clampMap() {
+            const viewW = els.viewport.clientWidth;
+            const viewH = els.viewport.clientHeight;
+            
+            // mapState is measured in standard CSS pixels
+            const cssMapW = 1600 * mapState.scale;
+            const cssMapH = mapBaseHeight * mapState.scale;
+            
+            // The map cannot be dragged past the exact center of the viewport
+            mapState.x = Math.max((viewW / 2) - cssMapW, Math.min(viewW / 2, mapState.x));
+            mapState.y = Math.max((viewH / 2) - cssMapH, Math.min(viewH / 2, mapState.y));
+        }
+
         function updateTimeMarker() {
             const now = new Date();
             const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -328,11 +391,9 @@
             els.nowMarker.style.display = 'none';
         }
 
-        // --- Demo Canvas Rendering Logic ---
         function drawDemo(type = 'default') {
             const dCanvas = document.getElementById('demoCanvas');
             const dCtx = dCanvas.getContext('2d');
-            
             dCtx.clearRect(0, 0, 160, 160);
 
             const pad = 12, gap = 8, size = 64; 
@@ -353,7 +414,6 @@
             }
 
             const states = ['free', 'busy', 'busy', 'free'];
-            
             if (type === 'unknown') states.fill('unknown');
             if (type === 'busy') states.fill('busy');
             if (type === 'free') states.fill('free');
@@ -531,6 +591,7 @@
             mapState.scale = viewW / 1600;
             mapState.x = 0;
             mapState.y = Math.max(0, (els.viewport.clientHeight - (mapBaseHeight * mapState.scale)) / 2);
+            clampMap();
         }
 
         function requestRender() {
@@ -650,6 +711,7 @@
                 cancelAnimationFrame(inertiaAnimId);
                 mapState.x -= e.deltaX;
                 mapState.y -= e.deltaY;
+                clampMap(); // FIX: Clamp on scroll
                 requestRender();
             }, { passive: false });
 
@@ -711,6 +773,7 @@
                     mapState.scale = Math.max(0.1, Math.min(sS * rS, 4));
                     mapState.x = ((pts[0].clientX + pts[1].clientX)/2) - (sVX * rS);
                     mapState.y = ((pts[0].clientY + pts[1].clientY)/2) - (sVY * rS);
+                    clampMap(); // FIX: Clamp on pinch zoom
                     requestRender();
                 } else if (pts.length === 1) {
                     const nowTime = performance.now();
@@ -724,6 +787,7 @@
                         tooltip.classList.remove('visible');
                         mapState.x = pts[0].clientX - sVX;
                         mapState.y = pts[0].clientY - sVY;
+                        clampMap(); // FIX: Clamp on drag
                         requestRender();
                     }
                 }
@@ -770,6 +834,23 @@
                         if (Math.abs(vX) > 0.1 || Math.abs(vY) > 0.1) {
                             mapState.x += vX;
                             mapState.y += vY;
+                            
+                            // FIX: Clamp math + Velocity Kill 
+                            const viewW = els.viewport.clientWidth;
+                            const viewH = els.viewport.clientHeight;
+                            const cssMapW = 1600 * mapState.scale;
+                            const cssMapH = mapBaseHeight * mapState.scale;
+                            const minX = (viewW / 2) - cssMapW;
+                            const maxX = viewW / 2;
+                            const minY = (viewH / 2) - cssMapH;
+                            const maxY = viewH / 2;
+
+                            // If we smack into a boundary wall, kill the momentum instantly 
+                            // so it doesn't grind against the edge
+                            if (mapState.x <= minX || mapState.x >= maxX) vX = 0;
+                            if (mapState.y <= minY || mapState.y >= maxY) vY = 0;
+
+                            clampMap();
                             vX *= friction;
                             vY *= friction;
                             requestRender();
