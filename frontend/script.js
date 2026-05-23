@@ -35,6 +35,11 @@ const els = {
     btnOpenLegend: document.getElementById('btnOpenLegend'),
     btnCloseLegend: document.getElementById('btnCloseLegend'),
     legendModal: document.getElementById('legendModal'),
+    lnkOpenPwa: document.getElementById('lnkOpenPwa'),
+    pwaModal: document.getElementById('pwaModal'),
+    pwaTutorialText: document.getElementById('pwaTutorialText'),
+    btnClosePwa: document.getElementById('btnClosePwa'),
+    btnNeverShowPwa: document.getElementById('btnNeverShowPwa'),
     donationModal: document.getElementById('donationModal'),
     btnDonateNow: document.getElementById('btnDonateNow'),
     btnCloseDonation: document.getElementById('btnCloseDonation')
@@ -69,6 +74,41 @@ const C_BORDER = 'rgba(255, 255, 255, 0.4)';
 const C_SELECT = '#ffffff';
 const C_PLUG = '#3b82f6';
 const C_LIGHT = 'rgba(253, 224, 71, 0.4)';
+
+function isRunningAsApp() {
+    return (window.navigator.standalone === true) ||
+           (window.matchMedia('(display-mode: standalone)').matches) ||
+           (window.matchMedia('(display-mode: fullscreen)').matches) ||
+           (window.matchMedia('(display-mode: minimal-ui)').matches) ||
+           (document.referrer.includes('android-app://'));
+}
+
+function getMobileOS() {
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+        return 'ios';
+    }
+    if (/Android/.test(ua)) {
+        return 'android';
+    }
+    return 'desktop';
+}
+
+function injectPwaTutorial() {
+    const txtEl = els.pwaTutorialText;
+    if (!txtEl) return;
+    const os = getMobileOS();
+
+    if (os === 'ios') {
+        txtEl.innerHTML = `<b>Pour l'installer :</b><br>
+        1. Clique sur l'icône <b>Partager</b> (le carré avec la flèche 📤 en bas ou en haut de l'écran).<br>
+        2. Défile vers le bas et choisis <b>"Sur l'écran d'accueil"</b> 📲`;
+    } else if (os === 'android') {
+        txtEl.innerHTML = `<b>Pour l'installer :</b><br>
+        1. Clique sur les <b>3 petits points</b> (⠇) en haut à droite.<br>
+        2. Choisis <b>"Installer l'application"</b> ou <b>"Ajouter à l'écran d'accueil"</b> 📲`;
+    }
+}
 
 function updateActionBarUI() {
     if (!appState.selectedSeatId) {
@@ -196,7 +236,69 @@ async function init() {
     setupPointerEvents();
     setupSlider();
     setupLegendModal(); 
-    
+
+    let startupModalTriggered = false;
+
+    if (els.donationModal) {
+        const lastSeenDonation = localStorage.getItem('bu_donation_last_seen');
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const timePassed = Date.now() - parseInt(lastSeenDonation || 0, 10);
+
+        if (timePassed > oneWeek && Math.random() < 0.3) {
+            els.donationModal.classList.add('visible');
+            localStorage.setItem('bu_donation_last_seen', Date.now().toString());
+            startupModalTriggered = true;
+
+            els.btnCloseDonation?.addEventListener('click', () => {
+                els.donationModal.classList.remove('visible');
+            });
+
+            els.btnDonateNow?.addEventListener('click', () => {
+                window.open('https://www.buymeacoffee.com/hdbdt', '_blank');
+                els.donationModal.classList.remove('visible');
+            });
+        }
+    }
+
+    const os = getMobileOS();
+    if (os === 'desktop') {
+        if (els.lnkOpenPwa) els.lnkOpenPwa.style.display = 'none';
+    } else if (els.pwaModal) {
+        const lessFrequentFlag = localStorage.getItem('bu_pwa_less_frequent');
+
+        if (els.lnkOpenPwa) {
+            els.lnkOpenPwa.addEventListener('click', () => {
+                els.legendModal.classList.remove('visible');
+                injectPwaTutorial();
+
+                if (els.btnNeverShowPwa) els.btnNeverShowPwa.style.display = 'none';
+
+                els.pwaModal.classList.add('visible');
+            });
+        }
+
+        if (!startupModalTriggered && !isRunningAsApp()) {
+            const probability = lessFrequentFlag === 'true' ? 0.05 : 0.2;
+
+            if (Math.random() < probability) {
+                injectPwaTutorial();
+
+                if (els.btnNeverShowPwa) els.btnNeverShowPwa.style.display = 'block';
+
+                els.pwaModal.classList.add('visible');
+            }
+        }
+
+        els.btnClosePwa?.addEventListener('click', () => {
+            els.pwaModal.classList.remove('visible');
+        });
+
+        els.btnNeverShowPwa?.addEventListener('click', () => {
+            localStorage.setItem('bu_pwa_less_frequent', 'true');
+            els.pwaModal.classList.remove('visible');
+        });
+    }
+
     els.btnCloseAction.addEventListener('click', () => {
         appState.selectedSeatId = null;
     });
@@ -218,19 +320,6 @@ async function init() {
             openBooking(appState.selectedSeatId); 
         }
     });
-
-    if (Math.random() < 0.1 && els.donationModal) {
-        els.donationModal.classList.add('visible');
-
-        els.btnCloseDonation?.addEventListener('click', () => {
-            els.donationModal.classList.remove('visible');
-        });
-
-        els.btnDonateNow?.addEventListener('click', () => {
-            window.open('https://www.buymeacoffee.com/hdbdt', '_blank');
-            els.donationModal.classList.remove('visible');
-        });
-    }
 
     loadData();
     updateSliderUI();
