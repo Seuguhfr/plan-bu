@@ -85,6 +85,10 @@
                     <div class="leg-interactive" data-type="free"><div class="swatch sw-free"></div> Place libre</div>
                     <div class="leg-interactive" data-type="plug"><div class="swatch sw-plug"></div> Prises individuelles</div>
                     <div class="leg-interactive" data-type="light"><div class="swatch sw-light"></div> Lampe de bureau</div>
+                    <div class="leg-interactive" id="lnkOpenPwa" style="margin-top: 12px; border-top: 1px dashed #cbd5e1; padding-top: 12px; font-size: 13px; color: #64748b;">
+                        <span class="swatch" style="background: transparent; display: flex; align-items: center; justify-content: center; font-size: 14px;">📲</span>
+                        Installer sur mon écran d'accueil
+                    </div>
                 </div>
                 <div class="legend-showcase">
                     <canvas id="demoCanvas" width="160" height="160"></canvas>
@@ -116,6 +120,27 @@
             Donner un coup de pouce 
         </button>
     </div>
+    </div>
+
+    <div id="pwaModal" class="modal-overlay">
+        <div class="modal-content" style="padding: 24px; text-align: center; max-width: 330px; border-radius: 16px; position: relative;">
+            
+            <button id="btnClosePwa" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; font-size: 20px; cursor: pointer; padding: 4px; line-height: 1; color: #64748b;">
+                ✖
+            </button>
+
+            <div style="font-size: 36px; margin-top: 10px; margin-bottom: 8px;">📲</div>
+            
+            <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 700;">
+                Installe l'app en 2 secondes !
+            </h3>
+            
+            <p id="pwaTutorialText" style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 24px; text-align: left;"></p>
+            
+            <button id="btnNeverShowPwa" class="action-btn btn-secondary" style="font-size: 13px; padding: 8px; border: none; background: transparent; color: #94a3b8; text-decoration: underline; width: 100%;">
+                Ne plus me montrer
+            </button>
+        </div>
     </div>
 
     <script src="script.js"></script>
