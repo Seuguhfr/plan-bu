@@ -237,6 +237,29 @@ async function init() {
     setupSlider();
     setupLegendModal(); 
 
+    let startupModalTriggered = false;
+
+    if (els.donationModal) {
+        const lastSeenDonation = localStorage.getItem('bu_donation_last_seen');
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const timePassed = Date.now() - parseInt(lastSeenDonation || 0, 10);
+
+        if (timePassed > oneWeek && Math.random() < 0.3) {
+            els.donationModal.classList.add('visible');
+            localStorage.setItem('bu_donation_last_seen', Date.now().toString());
+            startupModalTriggered = true;
+
+            els.btnCloseDonation?.addEventListener('click', () => {
+                els.donationModal.classList.remove('visible');
+            });
+
+            els.btnDonateNow?.addEventListener('click', () => {
+                window.open('https://www.buymeacoffee.com/hdbdt', '_blank');
+                els.donationModal.classList.remove('visible');
+            });
+        }
+    }
+
     const os = getMobileOS();
     if (os === 'desktop') {
         if (els.lnkOpenPwa) els.lnkOpenPwa.style.display = 'none';
@@ -254,7 +277,7 @@ async function init() {
             });
         }
 
-        if (!isRunningAsApp()) {
+        if (!startupModalTriggered && !isRunningAsApp()) {
             const probability = lessFrequentFlag === 'true' ? 0.05 : 0.2;
 
             if (Math.random() < probability) {
@@ -275,7 +298,7 @@ async function init() {
             els.pwaModal.classList.remove('visible');
         });
     }
-    
+
     els.btnCloseAction.addEventListener('click', () => {
         appState.selectedSeatId = null;
     });
@@ -297,19 +320,6 @@ async function init() {
             openBooking(appState.selectedSeatId); 
         }
     });
-
-    if (Math.random() < 0.1 && els.donationModal) {
-        els.donationModal.classList.add('visible');
-
-        els.btnCloseDonation?.addEventListener('click', () => {
-            els.donationModal.classList.remove('visible');
-        });
-
-        els.btnDonateNow?.addEventListener('click', () => {
-            window.open('https://www.buymeacoffee.com/hdbdt', '_blank');
-            els.donationModal.classList.remove('visible');
-        });
-    }
 
     loadData();
     updateSliderUI();
