@@ -219,7 +219,7 @@ async function init() {
         }
     });
 
-    if (Math.random() < 0.1 && els.donationModal) {
+    if (Math.random() < 1 && els.donationModal) {
         els.donationModal.classList.add('visible');
 
         els.btnCloseDonation?.addEventListener('click', () => {

@@ -94,19 +94,30 @@
     </div>
 
     <div id="donationModal" class="modal-overlay">
-        <div class="modal-content" style="padding: 24px; text-align: center; max-width: 340px;">
-            <div style="font-size: 40px; margin-bottom: 10px;">💸</div>
-            <h3 style="margin: 0 0 10px 0; color: #1e293b;">Aide-moi à garder le site en ligne !</h3>
-            <p style="color: #64748b; font-size: 14px; line-height: 1.4; margin-bottom: 20px;">
-                Svp il faut que je paie le nom de domaine... J'accepte vraiment les centimes (même 0,50€ ça m'évite de finir en PLS) 🥀
-            </p>
-            <button id="btnDonateNow" class="action-btn btn-primary" style="background: #d97706; margin-bottom: 8px;">
-                Donner un coup de pouce ☕
-            </button>
-            <button id="btnCloseDonation" class="action-btn btn-secondary" style="font-size: 13px; padding: 8px;">
-                Pas de thunes dsl (fermer)
-            </button>
-        </div>
+        <div class="modal-content" style="padding: 24px; text-align: center; max-width: 330px; border-radius: 16px; position: relative;">
+        
+        <button id="btnCloseDonation" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; font-size: 22px; cursor: pointer; padding: 4px; line-height: 1;" title="Quitter en mode rat">
+            🐀
+        </button>
+
+        <div style="font-size: 36px; margin-top: 10px; margin-bottom: 8px;">💸</div>
+        
+        <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px; font-weight: 700;">
+            Aide-moi à garder le site en ligne !
+        </h3>
+        
+        <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 24px; text-align: left;">
+            Yo ! Désolé de casser le mood pendant que tu cherches une place, mais le nom de domaine va bientôt expirer... 
+            <br><br>
+            Faut vraiment que je le paie mais je suis un peu à sec là. J'accepte grave les centimes, même 0,50€ ça m'évite de finir en PLS 🥀
+            <br><br>
+            Merci de fou et bon courage pour tes révisions !
+        </p>
+        
+        <button id="btnDonateNow" class="action-btn btn-primary" style="background: #d97706; padding: 12px; font-size: 14px; width: 100%;">
+            Donner quelques centimes ☕
+        </button>
+    </div>
     </div>
 
     <script src="script.js"></script>
