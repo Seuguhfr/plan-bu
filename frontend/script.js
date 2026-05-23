@@ -34,7 +34,10 @@ const els = {
     btnBook: document.getElementById('btnBook'),
     btnOpenLegend: document.getElementById('btnOpenLegend'),
     btnCloseLegend: document.getElementById('btnCloseLegend'),
-    legendModal: document.getElementById('legendModal')
+    legendModal: document.getElementById('legendModal'),
+    donationModal: document.getElementById('donationModal'),
+    btnDonateNow: document.getElementById('btnDonateNow'),
+    btnCloseDonation: document.getElementById('btnCloseDonation')
 };
 
 const appState = new Proxy({
@@ -215,6 +218,19 @@ async function init() {
             openBooking(appState.selectedSeatId); 
         }
     });
+
+    if (Math.random() < 0.1 && els.donationModal) {
+        els.donationModal.classList.add('visible');
+
+        els.btnCloseDonation?.addEventListener('click', () => {
+            els.donationModal.classList.remove('visible');
+        });
+
+        els.btnDonateNow?.addEventListener('click', () => {
+            window.open('https://www.buymeacoffee.com/hdbdt', '_blank');
+            els.donationModal.classList.remove('visible');
+        });
+    }
 
     loadData();
     updateSliderUI();
