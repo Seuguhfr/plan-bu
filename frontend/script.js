@@ -240,13 +240,23 @@ async function init() {
     let startupModalTriggered = false;
 
     if (els.donationModal) {
-        const lastSeenDonation = localStorage.getItem('bu_donation_last_seen');
-        const oneWeek = 7 * 24 * 60 * 60 * 1000;
-        const timePassed = Date.now() - parseInt(lastSeenDonation || 0, 10);
+        let firstVisit = localStorage.getItem('bu_first_visit');
+        if (!firstVisit) {
+            firstVisit = Date.now().toString();
+            localStorage.setItem('bu_first_visit', firstVisit);
+        }
 
-        if (timePassed > oneWeek && Math.random() < 0.3) {
+        const now = Date.now();
+        const twoWeeks = 14 * 24 * 60 * 60 * 1000;
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const timeSinceFirstVisit = now - parseInt(firstVisit, 10);
+
+        const lastSeenDonation = localStorage.getItem('bu_donation_last_seen');
+        const timeSinceLastSeen = now - parseInt(lastSeenDonation || 0, 10);
+
+        if (timeSinceFirstVisit > twoWeeks && timeSinceLastSeen > oneWeek && Math.random() < 0.3) {
             els.donationModal.classList.add('visible');
-            localStorage.setItem('bu_donation_last_seen', Date.now().toString());
+            localStorage.setItem('bu_donation_last_seen', now.toString());
             startupModalTriggered = true;
 
             els.btnCloseDonation?.addEventListener('click', () => {
