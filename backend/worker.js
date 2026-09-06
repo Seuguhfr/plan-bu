@@ -15,20 +15,35 @@ const UPSTREAM_HEADERS = Object.freeze({
   "Cache-Control": "no-cache"
 });
 
-const CORS_HEADERS = {
+const SECURITY_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
 };
 
 const JSON_HEADERS = Object.freeze({
   "Content-Type": "application/json",
   "Cache-Control": `public, max-age=${CONFIG.cacheTtl}`,
-  ...CORS_HEADERS
+  ...SECURITY_HEADERS
 });
 
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const SEAT_REGEX = /^(\d+)/;
+
 let KV_CACHE = null;
+let KV_CACHE_EXPIRY = 0;
+const KV_TTL_MS = 5 * 60 * 1000; // 5 minutes in-memory refresh window
+
+function getTodayInFrance() {
+  return new Intl.DateTimeFormat("fr-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
 
 // =============================================================================
 // 2. WORKER ENTRY POINT
@@ -40,7 +55,15 @@ export default {
 
     // Handle CORS preflight requests
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: CORS_HEADERS });
+      return new Response(null, { headers: SECURITY_HEADERS });
+    }
+
+    // Enforce GET requests for API endpoints
+    if (request.method !== "GET") {
+      return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+        status: 405,
+        headers: JSON_HEADERS
+      });
     }
 
     // ---------------------------------------------------------
@@ -49,9 +72,9 @@ export default {
     if (url.pathname === "/assets/map.webp") {
       const object = await env.MAP_BUCKET.get("plan-bu.webp");
       if (object === null) {
-        return new Response("Image Not Found", { status: 404, headers: CORS_HEADERS });
+        return new Response("Image Not Found", { status: 404, headers: SECURITY_HEADERS });
       }
-      const headers = new Headers(CORS_HEADERS);
+      const headers = new Headers(SECURITY_HEADERS);
       object.writeHttpMetadata(headers);
       headers.set("etag", object.httpEtag);
       headers.set("Cache-Control", "public, max-age=31536000, immutable");
@@ -70,8 +93,13 @@ export default {
       // CONFIG HANDLER (Exposes KV data to the Frontend)
       // ---------------------------------------------------------
       if (url.pathname === "/api/config") {
-        if (!KV_CACHE) {
-          KV_CACHE = await env.SEATS_KV.get(CONFIG.siteSlug, { type: "json" });
+        const now = Date.now();
+        if (!KV_CACHE || now > KV_CACHE_EXPIRY) {
+          const fresh = await env.SEATS_KV.get(CONFIG.siteSlug, { type: "json" });
+          if (fresh) {
+            KV_CACHE = fresh;
+            KV_CACHE_EXPIRY = now + KV_TTL_MS;
+          }
         }
         if (!KV_CACHE) {
           return new Response(JSON.stringify({ error: "Seat config missing in KV" }), { status: 500, headers: JSON_HEADERS });
@@ -79,10 +107,11 @@ export default {
         return new Response(JSON.stringify(KV_CACHE), { headers: JSON_HEADERS });
       }
 
-      return new Response("API Route Not Found", { status: 404, headers: CORS_HEADERS });
+      return new Response(JSON.stringify({ error: "API Route Not Found" }), { status: 404, headers: JSON_HEADERS });
 
     } catch (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
+      console.error("Worker unhandled error:", error);
+      return new Response(JSON.stringify({ error: "Internal Server Error" }), {
         status: 500,
         headers: JSON_HEADERS
       });
@@ -95,7 +124,12 @@ export default {
 // =============================================================================
 
 async function handleApiRequest(request, url, ctx) {
-  const cacheKey = new Request(url.toString(), request);
+  const rawDate = url.searchParams.get("date");
+  const dateParam = (rawDate && DATE_REGEX.test(rawDate)) ? rawDate : getTodayInFrance();
+  
+  // Normalized cache key: ignore extra arbitrary query params (e.g. cache busters)
+  const cacheUrl = new URL(`${url.origin}${url.pathname}?date=${dateParam}`);
+  const cacheKey = new Request(cacheUrl.toString(), { method: "GET" });
   const cache = caches.default;
   const forceRefresh = url.searchParams.get("force") === "true";
   let response;
@@ -103,7 +137,6 @@ async function handleApiRequest(request, url, ctx) {
   if (!forceRefresh) response = await cache.match(cacheKey);
 
   if (!response) {
-    const dateParam = url.searchParams.get("date") || new Date().toISOString().split('T')[0];
     try {
       const result = await fetchAllUpstreamData(dateParam);
       if (result.isClosed || Object.keys(result.data).length === 0) {
@@ -113,7 +146,7 @@ async function handleApiRequest(request, url, ctx) {
       }
       ctx.waitUntil(cache.put(cacheKey, response.clone()));
     } catch (err) {
-      console.error(err);
+      console.error("Upstream fetch error:", err);
       return new Response(JSON.stringify({ error: "Upstream failure" }), { status: 503, headers: JSON_HEADERS });
     }
   }
@@ -127,7 +160,7 @@ async function handleApiRequest(request, url, ctx) {
 async function fetchAllUpstreamData(targetDate) {
   const promises = CONFIG.resourceIds.map(id => fetchUpstreamDataForId(targetDate, id));
   const results = await Promise.all(promises);
-  let mergedData = {};
+  let mergedData = Object.create(null);
   let allClosed = true;
 
   for (const res of results) {
@@ -138,7 +171,7 @@ async function fetchAllUpstreamData(targetDate) {
 }
 
 async function fetchUpstreamDataForId(targetDate, typeId) {
-  const targetUrl = `https://affluences.com/fr/sites/${CONFIG.siteSlug}/reservation?type=${typeId}&date=${targetDate}`;
+  const targetUrl = `https://affluences.com/fr/sites/${CONFIG.siteSlug}/reservation?type=${encodeURIComponent(typeId)}&date=${encodeURIComponent(targetDate)}`;
   try {
     const resp = await fetch(targetUrl, { headers: UPSTREAM_HEADERS });
     if (!resp.ok) return { data: {}, isClosed: false };
@@ -161,7 +194,7 @@ async function fetchUpstreamDataForId(targetDate, typeId) {
       .filter(val => val && Array.isArray(val.b) && val.b.length > 0)
       .flatMap(val => val.b);
 
-    const map = {};
+    const map = Object.create(null);
     if (resources.length > 0) parseResources(resources, map, typeId);
     return { data: map, isClosed: false };
   } catch (e) {
@@ -172,10 +205,11 @@ async function fetchUpstreamDataForId(targetDate, typeId) {
 
 function parseResources(resources, map, typeId) {
   for (const res of resources) {
-    if (!res.resource_name) continue;
+    if (!res || !res.resource_name) continue;
     const numMatch = res.resource_name.match(SEAT_REGEX);
     const seatId = numMatch ? numMatch[1] : res.resource_name.trim(); 
-    
+    if (!seatId || seatId === "__proto__" || seatId === "constructor" || seatId === "prototype") continue;
+
     const desc = (res.description || "").toLowerCase();
     const hasPlug = desc.includes("prise") && !desc.includes("proximit");
     const hasLight = desc.includes("lampe");

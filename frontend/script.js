@@ -164,30 +164,72 @@ function updateActionBarUI() {
  * Loads the image from local path or cache
  */
 async function fetchImageWithCache(url) {
-    return new Promise(async (resolve) => {
-        const cacheName = 'bu-map-img-v3'; // Bumped version for assets/ folder
-        try {
-            const cache = await caches.open(cacheName);
-            const cachedRes = await cache.match(url);
-            if (cachedRes) {
-                const blob = await cachedRes.blob();
-                mapImage.src = URL.createObjectURL(blob);
-                mapImage.onload = () => resolve();
-                fetch(url).then(res => { if (res.ok) cache.put(url, res.clone()); }).catch(() => {});
-            } else {
-                mapImage.src = url;
-                mapImage.onload = () => resolve();
-                fetch(url).then(res => { if (res.ok) cache.put(url, res.clone()); }).catch(() => {});
+    return new Promise((resolve) => {
+        let settled = false;
+        const done = () => {
+            if (!settled) {
+                settled = true;
+                resolve();
             }
-        } catch (e) {
-            mapImage.src = url;
-            mapImage.onload = () => resolve();
+        };
+
+        // Safety fallback timer to prevent app startup deadlock
+        const safetyTimer = setTimeout(() => {
+            console.warn("Délai d'attente dépassé pour l'image de la carte");
+            done();
+        }, 5000);
+
+        const setupImage = (imgSrc, objectUrlToRevoke = null) => {
+            mapImage.onload = () => {
+                clearTimeout(safetyTimer);
+                if (objectUrlToRevoke) {
+                    try { URL.revokeObjectURL(objectUrlToRevoke); } catch (e) {}
+                }
+                done();
+            };
+            mapImage.onerror = () => {
+                clearTimeout(safetyTimer);
+                if (objectUrlToRevoke) {
+                    try { URL.revokeObjectURL(objectUrlToRevoke); } catch (e) {}
+                }
+                console.error("Échec du chargement de l'image de la carte:", imgSrc);
+                done();
+            };
+            mapImage.src = imgSrc;
+        };
+
+        const cacheName = 'bu-map-img-v3';
+        if ('caches' in window) {
+            caches.open(cacheName).then(async (cache) => {
+                try {
+                    const cachedRes = await cache.match(url);
+                    if (cachedRes) {
+                        const blob = await cachedRes.blob();
+                        const objUrl = URL.createObjectURL(blob);
+                        setupImage(objUrl, objUrl);
+                        fetch(url).then(res => { if (res.ok) cache.put(url, res.clone()); }).catch(() => {});
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Erreur lecture CacheStorage:", e);
+                }
+                setupImage(url);
+                fetch(url).then(res => { if (res.ok) cache.put(url, res.clone()); }).catch(() => {});
+            }).catch(() => {
+                setupImage(url);
+            });
+        } else {
+            setupImage(url);
         }
     });
 }
 
 async function loadConfig() {
-    const cachedConfig = localStorage.getItem('bu_config_cache');
+    let cachedConfig = null;
+    try {
+        cachedConfig = localStorage.getItem('bu_config_cache');
+    } catch (e) {}
+
     if (cachedConfig) {
         try {
             LOCATIONS = JSON.parse(cachedConfig);
@@ -198,12 +240,17 @@ async function loadConfig() {
     
     try {
         const res = await fetch(`${API_BASE_URL}/api/config`);
+        if (!res.ok) throw new Error(`Config HTTP ${res.status}`);
         const freshConfig = await res.json();
         const freshString = JSON.stringify(freshConfig);
         
         if (cachedConfig !== freshString) {
             LOCATIONS = freshConfig;
-            localStorage.setItem('bu_config_cache', freshString);
+            try {
+                localStorage.setItem('bu_config_cache', freshString);
+            } catch (e) {
+                console.warn("Impossible d'écrire la config dans localStorage:", e);
+            }
             buildHitGrid();
             updateMapState();
             requestRender();
@@ -240,33 +287,39 @@ async function init() {
     let startupModalTriggered = false;
 
     if (els.donationModal) {
-        let firstVisit = localStorage.getItem('bu_first_visit');
-        if (!firstVisit) {
-            firstVisit = Date.now().toString();
-            localStorage.setItem('bu_first_visit', firstVisit);
-        }
+        try {
+            let firstVisit = localStorage.getItem('bu_first_visit');
+            if (!firstVisit) {
+                firstVisit = Date.now().toString();
+                localStorage.setItem('bu_first_visit', firstVisit);
+            }
 
-        const now = Date.now();
-        const twoWeeks = 14 * 24 * 60 * 60 * 1000;
-        const oneWeek = 7 * 24 * 60 * 60 * 1000;
-        const timeSinceFirstVisit = now - parseInt(firstVisit, 10);
+            const now = Date.now();
+            const twoWeeks = 14 * 24 * 60 * 60 * 1000;
+            const oneWeek = 7 * 24 * 60 * 60 * 1000;
+            const parsedFirstVisit = parseInt(firstVisit, 10);
+            const timeSinceFirstVisit = isNaN(parsedFirstVisit) ? 0 : now - parsedFirstVisit;
 
-        const lastSeenDonation = localStorage.getItem('bu_donation_last_seen');
-        const timeSinceLastSeen = now - parseInt(lastSeenDonation || 0, 10);
+            const lastSeenDonation = localStorage.getItem('bu_donation_last_seen');
+            const parsedLastSeen = parseInt(lastSeenDonation || '0', 10);
+            const timeSinceLastSeen = isNaN(parsedLastSeen) ? Infinity : now - parsedLastSeen;
 
-        if (timeSinceFirstVisit > twoWeeks && timeSinceLastSeen > oneWeek && Math.random() < 0.3) {
-            els.donationModal.classList.add('visible');
-            localStorage.setItem('bu_donation_last_seen', now.toString());
-            startupModalTriggered = true;
+            if (timeSinceFirstVisit > twoWeeks && timeSinceLastSeen > oneWeek && Math.random() < 0.3) {
+                els.donationModal.classList.add('visible');
+                localStorage.setItem('bu_donation_last_seen', now.toString());
+                startupModalTriggered = true;
 
-            els.btnCloseDonation?.addEventListener('click', () => {
-                els.donationModal.classList.remove('visible');
-            });
+                els.btnCloseDonation?.addEventListener('click', () => {
+                    els.donationModal.classList.remove('visible');
+                });
 
-            els.btnDonateNow?.addEventListener('click', () => {
-                window.open('https://www.buymeacoffee.com/hdbdt', '_blank');
-                els.donationModal.classList.remove('visible');
-            });
+                els.btnDonateNow?.addEventListener('click', () => {
+                    window.open('https://www.buymeacoffee.com/hdbdt', '_blank', 'noopener,noreferrer');
+                    els.donationModal.classList.remove('visible');
+                });
+            }
+        } catch (e) {
+            console.warn("Erreur accès localStorage pour donation modal:", e);
         }
     }
 
@@ -493,7 +546,14 @@ function buildHitGrid() {
     });
 }
 
-async function loadData(force = false) {
+function isDateSunday(dateStr) {
+    if (!dateStr) return false;
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return false;
+    return new Date(parts[0], parts[1] - 1, parts[2]).getDay() === 0;
+}
+
+async function loadData(force = false, retryCount = 0) {
     isFetchingData = true;
     startAnimationLoop();
     
@@ -501,9 +561,20 @@ async function loadData(force = false) {
     els.btnReload.style.opacity = '0.5';
     
     try {
-        const url = `${API_BASE_URL}/api/load_day?date=${els.dp.value}&force=${force}&t=${Date.now()}`;
+        const forceParam = force ? '&force=true' : '';
+        const url = `${API_BASE_URL}/api/load_day?date=${encodeURIComponent(els.dp.value)}${forceParam}`;
         const res = await fetch(url);
-        if (res.status === 503) { setTimeout(() => loadData(force), 2000); return; }
+        if (res.status === 503) {
+            if (retryCount < 3) {
+                const delay = Math.min(8000, 2000 * Math.pow(2, retryCount));
+                setTimeout(() => loadData(force, retryCount + 1), delay);
+                return;
+            }
+            throw new Error("Service indisponible");
+        }
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
         const data = await res.json();
         
         if (Object.keys(data).length === 0) {
@@ -526,7 +597,7 @@ async function loadData(force = false) {
 
 function updateMapState() {
     if (Object.keys(AVAILABILITY).length === 0) return;
-    const isSunday = new Date(els.dp.value).getDay() === 0;
+    const isSunday = isDateSunday(els.dp.value);
     const s = Math.min(appState.startHour, appState.endHour);
     const e = Math.max(appState.startHour, appState.endHour);
     const reqSlots = [];
@@ -838,10 +909,17 @@ function setupPointerEvents() {
 
 function formatTime(h, isSun) { return (h<10?'0'+h:h) + (isSun?':00':':30'); }
 function showToast(msg, err) { els.toast.innerText = msg; els.toast.style.background = err ? '#ef4444' : '#22c55e'; els.toast.classList.add('visible'); setTimeout(() => els.toast.classList.remove('visible'), 4000); }
-function openBooking(num) { const d = AVAILABILITY[num]; if(!d) return; window.open(`https://affluences.com/fr/sites/${SITE_SLUG}/reservation?type=${d.typeId||"245"}&date=${els.dp.value}&resource=${d.resourceId||num}`, '_blank'); }
+function openBooking(num) {
+    const d = AVAILABILITY[num];
+    if (!d) return;
+    const typeId = encodeURIComponent(d.typeId || "245");
+    const dateVal = encodeURIComponent(els.dp.value);
+    const resId = encodeURIComponent(d.resourceId || num);
+    window.open(`https://affluences.com/fr/sites/${SITE_SLUG}/reservation?type=${typeId}&date=${dateVal}&resource=${resId}`, '_blank', 'noopener,noreferrer');
+}
 
 function updateSliderUI() {
-    const isSun = new Date(els.dp.value).getDay() === 0;
+    const isSun = isDateSunday(els.dp.value);
     const pS = ((appState.startHour - MIN_HOUR) / (MAX_HOUR - MIN_HOUR)) * 100;
     const pE = ((appState.endHour - MIN_HOUR) / (MAX_HOUR - MIN_HOUR)) * 100;
     els.thS.style.left = pS + '%'; els.thE.style.left = pE + '%';
