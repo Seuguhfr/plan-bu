@@ -511,6 +511,17 @@ async function init() {
         }
     }
 
+    // Debug preview helper: e.g. ?modal=reminder, ?modal=donation, ?modal=pwa
+    const urlModal = new URLSearchParams(window.location.search).get('modal');
+    if (urlModal === 'reminder') {
+        els.bookingReminderModal?.classList.add('visible');
+    } else if (urlModal === 'donation') {
+        els.donationModal?.classList.add('visible');
+    } else if (urlModal === 'pwa') {
+        injectPwaTutorial();
+        els.pwaModal?.classList.add('visible');
+    }
+
     els.btnCloseAction.addEventListener('click', () => {
         appState.selectedSeatId = null;
     });
