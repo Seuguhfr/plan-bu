@@ -42,7 +42,8 @@ const els = {
     btnNeverShowPwa: document.getElementById('btnNeverShowPwa'),
     donationModal: document.getElementById('donationModal'),
     btnDonateNow: document.getElementById('btnDonateNow'),
-    btnCloseDonation: document.getElementById('btnCloseDonation')
+    btnCloseDonation: document.getElementById('btnCloseDonation'),
+    footerBmcLink: document.querySelector('.bmc-footer-link')
 };
 
 const appState = new Proxy({
@@ -260,6 +261,53 @@ async function loadConfig() {
     }
 }
 
+const COOLDOWN_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;   // 7 days if dismissed
+const COOLDOWN_SUPPORT_MS = 60 * 24 * 60 * 60 * 1000;  // 60 days (~2 months) if clicked support
+
+function trackActiveDay() {
+    try {
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const lastActiveDay = localStorage.getItem('bu_last_active_day');
+        let activeDays = parseInt(localStorage.getItem('bu_active_days_count') || '0', 10);
+        if (isNaN(activeDays) || activeDays < 0) activeDays = 0;
+
+        if (lastActiveDay !== todayStr) {
+            activeDays += 1;
+            localStorage.setItem('bu_last_active_day', todayStr);
+            localStorage.setItem('bu_active_days_count', activeDays.toString());
+        }
+        return activeDays;
+    } catch (e) {
+        return 1;
+    }
+}
+
+function setDonationCooldown(durationMs) {
+    try {
+        const until = Date.now() + durationMs;
+        localStorage.setItem('bu_donation_cooldown_until', until.toString());
+    } catch (e) {}
+}
+
+function isDonationCooldownActive() {
+    try {
+        const now = Date.now();
+        const cooldownUntil = parseInt(localStorage.getItem('bu_donation_cooldown_until') || '0', 10);
+        if (!isNaN(cooldownUntil) && cooldownUntil > 0) {
+            return now < cooldownUntil;
+        }
+        // Fallback for legacy key
+        const legacyLastSeen = parseInt(localStorage.getItem('bu_donation_last_seen') || '0', 10);
+        if (!isNaN(legacyLastSeen) && legacyLastSeen > 0) {
+            return (now - legacyLastSeen) < COOLDOWN_DISMISS_MS;
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
 async function init() {
     resizeCanvas();
     window.addEventListener('resize', () => { resizeCanvas(); requestRender(); });
@@ -284,45 +332,49 @@ async function init() {
     setupSlider();
     setupLegendModal(); 
 
+    // Wire up footer BMC link to apply the 60-day cooldown on proactive support
+    els.footerBmcLink?.addEventListener('click', () => {
+        setDonationCooldown(COOLDOWN_SUPPORT_MS);
+    });
+
+    const activeDays = trackActiveDay();
     let startupModalTriggered = false;
 
+    // -------------------------------------------------------------
+    // MODAL LIFECYCLE:
+    // Days 1 to 3: Zero popups
+    // Days 4 to 14: PWA install prompt candidate (mobile only)
+    // Days 15+: Donation modal candidate (cooldown applies)
+    // -------------------------------------------------------------
+
+    // Donation Modal wiring
     if (els.donationModal) {
-        try {
-            let firstVisit = localStorage.getItem('bu_first_visit');
-            if (!firstVisit) {
-                firstVisit = Date.now().toString();
-                localStorage.setItem('bu_first_visit', firstVisit);
+        els.btnCloseDonation?.addEventListener('click', () => {
+            setDonationCooldown(COOLDOWN_DISMISS_MS);
+            els.donationModal.classList.remove('visible');
+        });
+
+        els.btnDonateNow?.addEventListener('click', () => {
+            setDonationCooldown(COOLDOWN_SUPPORT_MS);
+            window.open('https://www.buymeacoffee.com/hdbdt', '_blank', 'noopener,noreferrer');
+            els.donationModal.classList.remove('visible');
+        });
+
+        els.donationModal.addEventListener('click', (e) => {
+            if (e.target === els.donationModal) {
+                setDonationCooldown(COOLDOWN_DISMISS_MS);
+                els.donationModal.classList.remove('visible');
             }
+        });
 
-            const now = Date.now();
-            const twoWeeks = 14 * 24 * 60 * 60 * 1000;
-            const oneWeek = 7 * 24 * 60 * 60 * 1000;
-            const parsedFirstVisit = parseInt(firstVisit, 10);
-            const timeSinceFirstVisit = isNaN(parsedFirstVisit) ? 0 : now - parsedFirstVisit;
-
-            const lastSeenDonation = localStorage.getItem('bu_donation_last_seen');
-            const parsedLastSeen = parseInt(lastSeenDonation || '0', 10);
-            const timeSinceLastSeen = isNaN(parsedLastSeen) ? Infinity : now - parsedLastSeen;
-
-            if (timeSinceFirstVisit > twoWeeks && timeSinceLastSeen > oneWeek && Math.random() < 0.3) {
-                els.donationModal.classList.add('visible');
-                localStorage.setItem('bu_donation_last_seen', now.toString());
-                startupModalTriggered = true;
-
-                els.btnCloseDonation?.addEventListener('click', () => {
-                    els.donationModal.classList.remove('visible');
-                });
-
-                els.btnDonateNow?.addEventListener('click', () => {
-                    window.open('https://www.buymeacoffee.com/hdbdt', '_blank', 'noopener,noreferrer');
-                    els.donationModal.classList.remove('visible');
-                });
-            }
-        } catch (e) {
-            console.warn("Erreur accès localStorage pour donation modal:", e);
+        if (activeDays >= 15 && !isDonationCooldownActive() && Math.random() < 0.3) {
+            els.donationModal.classList.add('visible');
+            setDonationCooldown(COOLDOWN_DISMISS_MS);
+            startupModalTriggered = true;
         }
     }
 
+    // PWA Modal wiring
     const os = getMobileOS();
     if (os === 'desktop') {
         if (els.lnkOpenPwa) els.lnkOpenPwa.style.display = 'none';
@@ -340,7 +392,23 @@ async function init() {
             });
         }
 
-        if (!startupModalTriggered && !isRunningAsApp()) {
+        els.btnClosePwa?.addEventListener('click', () => {
+            els.pwaModal.classList.remove('visible');
+        });
+
+        els.btnNeverShowPwa?.addEventListener('click', () => {
+            localStorage.setItem('bu_pwa_less_frequent', 'true');
+            els.pwaModal.classList.remove('visible');
+        });
+
+        els.pwaModal.addEventListener('click', (e) => {
+            if (e.target === els.pwaModal) {
+                els.pwaModal.classList.remove('visible');
+            }
+        });
+
+        // Show automatically starting from active day 4 (never in days 1-3), if not in app mode and no donation modal
+        if (activeDays >= 4 && !startupModalTriggered && !isRunningAsApp()) {
             const probability = lessFrequentFlag === 'true' ? 0.05 : 0.2;
 
             if (Math.random() < probability) {
@@ -351,15 +419,6 @@ async function init() {
                 els.pwaModal.classList.add('visible');
             }
         }
-
-        els.btnClosePwa?.addEventListener('click', () => {
-            els.pwaModal.classList.remove('visible');
-        });
-
-        els.btnNeverShowPwa?.addEventListener('click', () => {
-            localStorage.setItem('bu_pwa_less_frequent', 'true');
-            els.pwaModal.classList.remove('visible');
-        });
     }
 
     els.btnCloseAction.addEventListener('click', () => {
