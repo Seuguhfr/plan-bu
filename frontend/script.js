@@ -265,11 +265,15 @@ async function loadConfig() {
 
 const COOLDOWN_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;   // 7 days if dismissed
 const COOLDOWN_SUPPORT_MS = 60 * 24 * 60 * 60 * 1000;  // 60 days (~2 months) if clicked support
-const COOLDOWN_REMINDER_MS = 14 * 24 * 60 * 60 * 1000; // 14 days cooldown if booking reminder acknowledged
 
-function getRecentVisits() {
+function getTodayStr() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function getActiveDaysLog() {
     try {
-        const raw = localStorage.getItem('bu_recent_visits');
+        const raw = localStorage.getItem('bu_active_days_log');
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
@@ -278,79 +282,74 @@ function getRecentVisits() {
     }
 }
 
-function recordVisitSession() {
+function trackActiveDay() {
     try {
-        const now = Date.now();
-        const lastSession = parseInt(localStorage.getItem('bu_last_session_time') || '0', 10);
-        const DEBOUNCE_MS = 20 * 60 * 1000; // 20 minutes debounce between distinct sessions
+        const todayStr = getTodayStr();
+        let log = getActiveDaysLog();
+        let totalCount = parseInt(localStorage.getItem('bu_active_days_count') || '0', 10);
+        if (isNaN(totalCount) || totalCount < 0) totalCount = 0;
 
-        let visits = getRecentVisits();
-        if (now - lastSession > DEBOUNCE_MS || visits.length === 0) {
-            visits.push({ t: now, booked: false });
-            if (visits.length > 5) {
-                visits = visits.slice(-5);
+        const lastEntry = log.length > 0 ? log[log.length - 1] : null;
+
+        if (!lastEntry || lastEntry.day !== todayStr) {
+            totalCount += 1;
+            log.push({ day: todayStr, booked: false });
+            if (log.length > 10) {
+                log = log.slice(-10);
             }
-            localStorage.setItem('bu_recent_visits', JSON.stringify(visits));
-            localStorage.setItem('bu_last_session_time', now.toString());
+            localStorage.setItem('bu_last_active_day', todayStr);
+            localStorage.setItem('bu_active_days_count', totalCount.toString());
+            localStorage.setItem('bu_active_days_log', JSON.stringify(log));
         }
+
+        return totalCount;
+    } catch (e) {
+        return 1;
+    }
+}
+
+function recordBookingDay() {
+    try {
+        const todayStr = getTodayStr();
+        let log = getActiveDaysLog();
+        let entry = log.find(e => e.day === todayStr);
+        if (!entry) {
+            entry = { day: todayStr, booked: true };
+            log.push(entry);
+        } else {
+            entry.booked = true;
+        }
+        if (log.length > 10) log = log.slice(-10);
+        localStorage.setItem('bu_active_days_log', JSON.stringify(log));
     } catch (e) {}
 }
 
-function recordBookingClick() {
+function shouldShowBookingReminder(currentActiveDay) {
     try {
-        const visits = getRecentVisits();
-        if (visits.length > 0) {
-            visits[visits.length - 1].booked = true;
-            localStorage.setItem('bu_recent_visits', JSON.stringify(visits));
-        }
-    } catch (e) {}
-}
-
-function shouldShowBookingReminder() {
-    try {
-        const now = Date.now();
-        const cooldownUntil = parseInt(localStorage.getItem('bu_booking_reminder_cooldown_until') || '0', 10);
-        if (!isNaN(cooldownUntil) && now < cooldownUntil) {
+        const lastShownDay = parseInt(localStorage.getItem('bu_reminder_last_shown_day') || '0', 10);
+        // Suppress for the next 2 active days (requires at least 3 active days difference to show again)
+        if (lastShownDay > 0 && currentActiveDay < (lastShownDay + 3)) {
             return false;
         }
 
-        const visits = getRecentVisits();
-        if (visits.length < 5) {
+        const log = getActiveDaysLog();
+        if (log.length < 5) {
             return false;
         }
 
-        const bookingCount = visits.filter(v => v.booked).length;
-        return bookingCount <= 1;
+        const last5Days = log.slice(-5);
+        const bookedDaysCount = last5Days.filter(d => d.booked).length;
+
+        return bookedDaysCount <= 1;
     } catch (e) {
         return false;
     }
 }
 
-function acknowledgeBookingReminder() {
+function acknowledgeBookingReminder(currentActiveDay) {
     try {
-        const until = Date.now() + COOLDOWN_REMINDER_MS;
-        localStorage.setItem('bu_booking_reminder_cooldown_until', until.toString());
-        localStorage.removeItem('bu_recent_visits');
+        localStorage.setItem('bu_reminder_last_shown_day', currentActiveDay.toString());
     } catch (e) {}
-}
-
-function trackActiveDay() {
-    try {
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const lastActiveDay = localStorage.getItem('bu_last_active_day');
-        let activeDays = parseInt(localStorage.getItem('bu_active_days_count') || '0', 10);
-        if (isNaN(activeDays) || activeDays < 0) activeDays = 0;
-
-        if (lastActiveDay !== todayStr) {
-            activeDays += 1;
-            localStorage.setItem('bu_last_active_day', todayStr);
-            localStorage.setItem('bu_active_days_count', activeDays.toString());
-        }
-        return activeDays;
-    } catch (e) {
-        return 1;
-    }
 }
 
 function setDonationCooldown(durationMs) {
@@ -407,13 +406,12 @@ async function init() {
         setDonationCooldown(COOLDOWN_SUPPORT_MS);
     });
 
-    recordVisitSession();
     const activeDays = trackActiveDay();
     let startupModalTriggered = false;
 
     // -------------------------------------------------------------
     // MODAL LIFECYCLE:
-    // Priority 1: Booking Reminder (if 5 recent visits with <= 1 booking)
+    // Priority 1: Booking Reminder (last 5 active days with <= 1 booked day, 2 active days cooldown)
     // Priority 2: Donation Modal (if activeDays >= 15 & random roll)
     // Priority 3: PWA Modal (if activeDays >= 4 & mobile & not app mode)
     // -------------------------------------------------------------
@@ -421,7 +419,7 @@ async function init() {
     // Booking Reminder Modal wiring
     if (els.bookingReminderModal) {
         const dismissReminder = () => {
-            acknowledgeBookingReminder();
+            acknowledgeBookingReminder(activeDays);
             els.bookingReminderModal.classList.remove('visible');
         };
 
@@ -433,7 +431,7 @@ async function init() {
             }
         });
 
-        if (shouldShowBookingReminder()) {
+        if (shouldShowBookingReminder(activeDays)) {
             els.bookingReminderModal.classList.add('visible');
             startupModalTriggered = true;
         }
@@ -1061,7 +1059,7 @@ function setupPointerEvents() {
 function formatTime(h, isSun) { return (h<10?'0'+h:h) + (isSun?':00':':30'); }
 function showToast(msg, err) { els.toast.innerText = msg; els.toast.style.background = err ? '#ef4444' : '#22c55e'; els.toast.classList.add('visible'); setTimeout(() => els.toast.classList.remove('visible'), 4000); }
 function openBooking(num) {
-    recordBookingClick();
+    recordBookingDay();
     const d = AVAILABILITY[num];
     if (!d) return;
     const typeId = encodeURIComponent(d.typeId || "245");
