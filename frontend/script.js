@@ -42,7 +42,10 @@ const els = {
     btnNeverShowPwa: document.getElementById('btnNeverShowPwa'),
     donationModal: document.getElementById('donationModal'),
     btnDonateNow: document.getElementById('btnDonateNow'),
-    btnCloseDonation: document.getElementById('btnCloseDonation')
+    btnCloseDonation: document.getElementById('btnCloseDonation'),
+    bookingReminderModal: document.getElementById('bookingReminderModal'),
+    btnAckBookingReminder: document.getElementById('btnAckBookingReminder'),
+    footerBmcLink: document.querySelector('.bmc-footer-link')
 };
 
 const appState = new Proxy({
@@ -260,6 +263,120 @@ async function loadConfig() {
     }
 }
 
+const COOLDOWN_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;   // 7 days if dismissed
+const COOLDOWN_SUPPORT_MS = 60 * 24 * 60 * 60 * 1000;  // 60 days (~2 months) if clicked support
+
+function getTodayStr() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function getActiveDaysLog() {
+    try {
+        const raw = localStorage.getItem('bu_active_days_log');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function trackActiveDay() {
+    try {
+        const todayStr = getTodayStr();
+        let log = getActiveDaysLog();
+        let totalCount = parseInt(localStorage.getItem('bu_active_days_count') || '0', 10);
+        if (isNaN(totalCount) || totalCount < 0) totalCount = 0;
+
+        const lastEntry = log.length > 0 ? log[log.length - 1] : null;
+
+        if (!lastEntry || lastEntry.day !== todayStr) {
+            totalCount += 1;
+            log.push({ day: todayStr, booked: false });
+            if (log.length > 10) {
+                log = log.slice(-10);
+            }
+            localStorage.setItem('bu_last_active_day', todayStr);
+            localStorage.setItem('bu_active_days_count', totalCount.toString());
+            localStorage.setItem('bu_active_days_log', JSON.stringify(log));
+        }
+
+        return totalCount;
+    } catch (e) {
+        return 1;
+    }
+}
+
+function recordBookingDay() {
+    try {
+        const todayStr = getTodayStr();
+        let log = getActiveDaysLog();
+        let entry = log.find(e => e.day === todayStr);
+        if (!entry) {
+            entry = { day: todayStr, booked: true };
+            log.push(entry);
+        } else {
+            entry.booked = true;
+        }
+        if (log.length > 10) log = log.slice(-10);
+        localStorage.setItem('bu_active_days_log', JSON.stringify(log));
+    } catch (e) {}
+}
+
+function shouldShowBookingReminder(currentActiveDay) {
+    try {
+        const lastShownDay = parseInt(localStorage.getItem('bu_reminder_last_shown_day') || '0', 10);
+        // Suppress for the next 2 active days (requires at least 3 active days difference to show again)
+        if (lastShownDay > 0 && currentActiveDay < (lastShownDay + 3)) {
+            return false;
+        }
+
+        const log = getActiveDaysLog();
+        if (log.length < 5) {
+            return false;
+        }
+
+        const last5Days = log.slice(-5);
+        const bookedDaysCount = last5Days.filter(d => d.booked).length;
+
+        return bookedDaysCount <= 1;
+    } catch (e) {
+        return false;
+    }
+}
+
+function acknowledgeBookingReminder(currentActiveDay) {
+    try {
+        localStorage.setItem('bu_reminder_last_shown_day', currentActiveDay.toString());
+    } catch (e) {}
+}
+
+function setDonationCooldown(durationMs) {
+    try {
+        const until = Date.now() + durationMs;
+        localStorage.setItem('bu_donation_cooldown_until', until.toString());
+    } catch (e) {}
+}
+
+function isDonationCooldownActive() {
+    try {
+        const now = Date.now();
+        const cooldownUntil = parseInt(localStorage.getItem('bu_donation_cooldown_until') || '0', 10);
+        if (!isNaN(cooldownUntil) && cooldownUntil > 0) {
+            return now < cooldownUntil;
+        }
+        // Fallback for legacy key
+        const legacyLastSeen = parseInt(localStorage.getItem('bu_donation_last_seen') || '0', 10);
+        if (!isNaN(legacyLastSeen) && legacyLastSeen > 0) {
+            return (now - legacyLastSeen) < COOLDOWN_DISMISS_MS;
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
 async function init() {
     resizeCanvas();
     window.addEventListener('resize', () => { resizeCanvas(); requestRender(); });
@@ -284,45 +401,70 @@ async function init() {
     setupSlider();
     setupLegendModal(); 
 
+    // Wire up footer BMC link to apply the 60-day cooldown on proactive support
+    els.footerBmcLink?.addEventListener('click', () => {
+        setDonationCooldown(COOLDOWN_SUPPORT_MS);
+    });
+
+    const activeDays = trackActiveDay();
     let startupModalTriggered = false;
 
-    if (els.donationModal) {
-        try {
-            let firstVisit = localStorage.getItem('bu_first_visit');
-            if (!firstVisit) {
-                firstVisit = Date.now().toString();
-                localStorage.setItem('bu_first_visit', firstVisit);
+    // -------------------------------------------------------------
+    // MODAL LIFECYCLE:
+    // Priority 1: Booking Reminder (last 5 active days with <= 1 booked day, 2 active days cooldown)
+    // Priority 2: Donation Modal (if activeDays >= 15 & random roll)
+    // Priority 3: PWA Modal (if activeDays >= 4 & mobile & not app mode)
+    // -------------------------------------------------------------
+
+    // Booking Reminder Modal wiring
+    if (els.bookingReminderModal) {
+        const dismissReminder = () => {
+            acknowledgeBookingReminder(activeDays);
+            els.bookingReminderModal.classList.remove('visible');
+        };
+
+        els.btnAckBookingReminder?.addEventListener('click', dismissReminder);
+
+        els.bookingReminderModal.addEventListener('click', (e) => {
+            if (e.target === els.bookingReminderModal) {
+                dismissReminder();
             }
+        });
 
-            const now = Date.now();
-            const twoWeeks = 14 * 24 * 60 * 60 * 1000;
-            const oneWeek = 7 * 24 * 60 * 60 * 1000;
-            const parsedFirstVisit = parseInt(firstVisit, 10);
-            const timeSinceFirstVisit = isNaN(parsedFirstVisit) ? 0 : now - parsedFirstVisit;
-
-            const lastSeenDonation = localStorage.getItem('bu_donation_last_seen');
-            const parsedLastSeen = parseInt(lastSeenDonation || '0', 10);
-            const timeSinceLastSeen = isNaN(parsedLastSeen) ? Infinity : now - parsedLastSeen;
-
-            if (timeSinceFirstVisit > twoWeeks && timeSinceLastSeen > oneWeek && Math.random() < 0.3) {
-                els.donationModal.classList.add('visible');
-                localStorage.setItem('bu_donation_last_seen', now.toString());
-                startupModalTriggered = true;
-
-                els.btnCloseDonation?.addEventListener('click', () => {
-                    els.donationModal.classList.remove('visible');
-                });
-
-                els.btnDonateNow?.addEventListener('click', () => {
-                    window.open('https://www.buymeacoffee.com/hdbdt', '_blank', 'noopener,noreferrer');
-                    els.donationModal.classList.remove('visible');
-                });
-            }
-        } catch (e) {
-            console.warn("Erreur accès localStorage pour donation modal:", e);
+        if (shouldShowBookingReminder(activeDays)) {
+            els.bookingReminderModal.classList.add('visible');
+            startupModalTriggered = true;
         }
     }
 
+    // Donation Modal wiring
+    if (els.donationModal) {
+        els.btnCloseDonation?.addEventListener('click', () => {
+            setDonationCooldown(COOLDOWN_DISMISS_MS);
+            els.donationModal.classList.remove('visible');
+        });
+
+        els.btnDonateNow?.addEventListener('click', () => {
+            setDonationCooldown(COOLDOWN_SUPPORT_MS);
+            window.open('https://www.buymeacoffee.com/hdbdt', '_blank', 'noopener,noreferrer');
+            els.donationModal.classList.remove('visible');
+        });
+
+        els.donationModal.addEventListener('click', (e) => {
+            if (e.target === els.donationModal) {
+                setDonationCooldown(COOLDOWN_DISMISS_MS);
+                els.donationModal.classList.remove('visible');
+            }
+        });
+
+        if (!startupModalTriggered && activeDays >= 15 && !isDonationCooldownActive() && Math.random() < 0.3) {
+            els.donationModal.classList.add('visible');
+            setDonationCooldown(COOLDOWN_DISMISS_MS);
+            startupModalTriggered = true;
+        }
+    }
+
+    // PWA Modal wiring
     const os = getMobileOS();
     if (os === 'desktop') {
         if (els.lnkOpenPwa) els.lnkOpenPwa.style.display = 'none';
@@ -340,7 +482,23 @@ async function init() {
             });
         }
 
-        if (!startupModalTriggered && !isRunningAsApp()) {
+        els.btnClosePwa?.addEventListener('click', () => {
+            els.pwaModal.classList.remove('visible');
+        });
+
+        els.btnNeverShowPwa?.addEventListener('click', () => {
+            localStorage.setItem('bu_pwa_less_frequent', 'true');
+            els.pwaModal.classList.remove('visible');
+        });
+
+        els.pwaModal.addEventListener('click', (e) => {
+            if (e.target === els.pwaModal) {
+                els.pwaModal.classList.remove('visible');
+            }
+        });
+
+        // Show automatically starting from active day 4 (never in days 1-3), if not in app mode and no modal triggered
+        if (activeDays >= 4 && !startupModalTriggered && !isRunningAsApp()) {
             const probability = lessFrequentFlag === 'true' ? 0.05 : 0.2;
 
             if (Math.random() < probability) {
@@ -351,15 +509,17 @@ async function init() {
                 els.pwaModal.classList.add('visible');
             }
         }
+    }
 
-        els.btnClosePwa?.addEventListener('click', () => {
-            els.pwaModal.classList.remove('visible');
-        });
-
-        els.btnNeverShowPwa?.addEventListener('click', () => {
-            localStorage.setItem('bu_pwa_less_frequent', 'true');
-            els.pwaModal.classList.remove('visible');
-        });
+    // Debug preview helper: e.g. ?modal=reminder, ?modal=donation, ?modal=pwa
+    const urlModal = new URLSearchParams(window.location.search).get('modal');
+    if (urlModal === 'reminder') {
+        els.bookingReminderModal?.classList.add('visible');
+    } else if (urlModal === 'donation') {
+        els.donationModal?.classList.add('visible');
+    } else if (urlModal === 'pwa') {
+        injectPwaTutorial();
+        els.pwaModal?.classList.add('visible');
     }
 
     els.btnCloseAction.addEventListener('click', () => {
@@ -910,6 +1070,7 @@ function setupPointerEvents() {
 function formatTime(h, isSun) { return (h<10?'0'+h:h) + (isSun?':00':':30'); }
 function showToast(msg, err) { els.toast.innerText = msg; els.toast.style.background = err ? '#ef4444' : '#22c55e'; els.toast.classList.add('visible'); setTimeout(() => els.toast.classList.remove('visible'), 4000); }
 function openBooking(num) {
+    recordBookingDay();
     const d = AVAILABILITY[num];
     if (!d) return;
     const typeId = encodeURIComponent(d.typeId || "245");
