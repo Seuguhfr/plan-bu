@@ -43,6 +43,8 @@ const els = {
     donationModal: document.getElementById('donationModal'),
     btnDonateNow: document.getElementById('btnDonateNow'),
     btnCloseDonation: document.getElementById('btnCloseDonation'),
+    bookingReminderModal: document.getElementById('bookingReminderModal'),
+    btnAckBookingReminder: document.getElementById('btnAckBookingReminder'),
     footerBmcLink: document.querySelector('.bmc-footer-link')
 };
 
@@ -263,6 +265,74 @@ async function loadConfig() {
 
 const COOLDOWN_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;   // 7 days if dismissed
 const COOLDOWN_SUPPORT_MS = 60 * 24 * 60 * 60 * 1000;  // 60 days (~2 months) if clicked support
+const COOLDOWN_REMINDER_MS = 14 * 24 * 60 * 60 * 1000; // 14 days cooldown if booking reminder acknowledged
+
+function getRecentVisits() {
+    try {
+        const raw = localStorage.getItem('bu_recent_visits');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function recordVisitSession() {
+    try {
+        const now = Date.now();
+        const lastSession = parseInt(localStorage.getItem('bu_last_session_time') || '0', 10);
+        const DEBOUNCE_MS = 20 * 60 * 1000; // 20 minutes debounce between distinct sessions
+
+        let visits = getRecentVisits();
+        if (now - lastSession > DEBOUNCE_MS || visits.length === 0) {
+            visits.push({ t: now, booked: false });
+            if (visits.length > 5) {
+                visits = visits.slice(-5);
+            }
+            localStorage.setItem('bu_recent_visits', JSON.stringify(visits));
+            localStorage.setItem('bu_last_session_time', now.toString());
+        }
+    } catch (e) {}
+}
+
+function recordBookingClick() {
+    try {
+        const visits = getRecentVisits();
+        if (visits.length > 0) {
+            visits[visits.length - 1].booked = true;
+            localStorage.setItem('bu_recent_visits', JSON.stringify(visits));
+        }
+    } catch (e) {}
+}
+
+function shouldShowBookingReminder() {
+    try {
+        const now = Date.now();
+        const cooldownUntil = parseInt(localStorage.getItem('bu_booking_reminder_cooldown_until') || '0', 10);
+        if (!isNaN(cooldownUntil) && now < cooldownUntil) {
+            return false;
+        }
+
+        const visits = getRecentVisits();
+        if (visits.length < 5) {
+            return false;
+        }
+
+        const bookingCount = visits.filter(v => v.booked).length;
+        return bookingCount <= 1;
+    } catch (e) {
+        return false;
+    }
+}
+
+function acknowledgeBookingReminder() {
+    try {
+        const until = Date.now() + COOLDOWN_REMINDER_MS;
+        localStorage.setItem('bu_booking_reminder_cooldown_until', until.toString());
+        localStorage.removeItem('bu_recent_visits');
+    } catch (e) {}
+}
 
 function trackActiveDay() {
     try {
@@ -337,15 +407,37 @@ async function init() {
         setDonationCooldown(COOLDOWN_SUPPORT_MS);
     });
 
+    recordVisitSession();
     const activeDays = trackActiveDay();
     let startupModalTriggered = false;
 
     // -------------------------------------------------------------
     // MODAL LIFECYCLE:
-    // Days 1 to 3: Zero popups
-    // Days 4 to 14: PWA install prompt candidate (mobile only)
-    // Days 15+: Donation modal candidate (cooldown applies)
+    // Priority 1: Booking Reminder (if 5 recent visits with <= 1 booking)
+    // Priority 2: Donation Modal (if activeDays >= 15 & random roll)
+    // Priority 3: PWA Modal (if activeDays >= 4 & mobile & not app mode)
     // -------------------------------------------------------------
+
+    // Booking Reminder Modal wiring
+    if (els.bookingReminderModal) {
+        const dismissReminder = () => {
+            acknowledgeBookingReminder();
+            els.bookingReminderModal.classList.remove('visible');
+        };
+
+        els.btnAckBookingReminder?.addEventListener('click', dismissReminder);
+
+        els.bookingReminderModal.addEventListener('click', (e) => {
+            if (e.target === els.bookingReminderModal) {
+                dismissReminder();
+            }
+        });
+
+        if (shouldShowBookingReminder()) {
+            els.bookingReminderModal.classList.add('visible');
+            startupModalTriggered = true;
+        }
+    }
 
     // Donation Modal wiring
     if (els.donationModal) {
@@ -367,7 +459,7 @@ async function init() {
             }
         });
 
-        if (activeDays >= 15 && !isDonationCooldownActive() && Math.random() < 0.3) {
+        if (!startupModalTriggered && activeDays >= 15 && !isDonationCooldownActive() && Math.random() < 0.3) {
             els.donationModal.classList.add('visible');
             setDonationCooldown(COOLDOWN_DISMISS_MS);
             startupModalTriggered = true;
@@ -407,7 +499,7 @@ async function init() {
             }
         });
 
-        // Show automatically starting from active day 4 (never in days 1-3), if not in app mode and no donation modal
+        // Show automatically starting from active day 4 (never in days 1-3), if not in app mode and no modal triggered
         if (activeDays >= 4 && !startupModalTriggered && !isRunningAsApp()) {
             const probability = lessFrequentFlag === 'true' ? 0.05 : 0.2;
 
@@ -969,6 +1061,7 @@ function setupPointerEvents() {
 function formatTime(h, isSun) { return (h<10?'0'+h:h) + (isSun?':00':':30'); }
 function showToast(msg, err) { els.toast.innerText = msg; els.toast.style.background = err ? '#ef4444' : '#22c55e'; els.toast.classList.add('visible'); setTimeout(() => els.toast.classList.remove('visible'), 4000); }
 function openBooking(num) {
+    recordBookingClick();
     const d = AVAILABILITY[num];
     if (!d) return;
     const typeId = encodeURIComponent(d.typeId || "245");
