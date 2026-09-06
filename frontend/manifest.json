@@ -1,0 +1,17 @@
+{
+  "name": "Plan BU Saint-Serge",
+  "short_name": "Plan BU",
+  "description": "Visualisez les places libres et les prises à la BU Saint-Serge",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
