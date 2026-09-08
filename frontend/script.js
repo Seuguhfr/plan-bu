@@ -1,4 +1,7 @@
-const API_BASE_URL = "https://plan-bu-backend.hdbdt1597-cloudflare.workers.dev";
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? "http://localhost:8787"
+    : "https://plan-bu-backend.hdbdt1597-cloudflare.workers.dev";
+
 
 const SITES = {
     "bua-st-serge": {
@@ -300,7 +303,14 @@ async function loadConfig() {
 
     if (cachedConfig) {
         try {
-            LOCATIONS = JSON.parse(cachedConfig);
+            const parsed = JSON.parse(cachedConfig);
+            const isStSerge = Object.keys(parsed).some(k => k.startsWith('3'));
+            if (currentSite.slug === 'bua-provisoire-belle-beille' && isStSerge) {
+                localStorage.removeItem(cacheKey);
+                LOCATIONS = FALLBACK_CONFIGS[currentSite.slug];
+            } else {
+                LOCATIONS = parsed;
+            }
             buildHitGrid();
             requestRender();
         } catch (e) {}
@@ -314,6 +324,18 @@ async function loadConfig() {
         const res = await fetch(`${API_BASE_URL}/api/config?site=${currentSite.slug}`);
         if (!res.ok) throw new Error(`Config HTTP ${res.status}`);
         const freshConfig = await res.json();
+
+        // Safety guard: if backend worker hasn't been updated yet, it might return Saint-Serge keys (3xxx)
+        const isStSergeConfig = Object.keys(freshConfig).some(k => k.startsWith('3'));
+        if (currentSite.slug === 'bua-provisoire-belle-beille' && isStSergeConfig) {
+            console.warn("Backend worker renvoie encore la config Saint-Serge pour Belle-Beille. Utilisation du fallback local.");
+            LOCATIONS = FALLBACK_CONFIGS[currentSite.slug];
+            buildHitGrid();
+            updateMapState();
+            requestRender();
+            return;
+        }
+
         const freshString = JSON.stringify(freshConfig);
         
         if (cachedConfig !== freshString) {
