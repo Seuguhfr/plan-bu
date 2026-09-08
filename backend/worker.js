@@ -2,16 +2,27 @@
 // 1. CONFIGURATION
 // =============================================================================
 
-const CONFIG = Object.freeze({
-  siteSlug: "bua-st-serge",
-  resourceIds: ["245", "665"],
-  cacheTtl: 60
+const SITES = Object.freeze({
+  "bua-st-serge": {
+    slug: "bua-st-serge",
+    name: "BU Saint-Serge",
+    resourceIds: ["245", "665"],
+    mapObject: "plan-bu.webp"
+  },
+  "bua-provisoire-belle-beille": {
+    slug: "bua-provisoire-belle-beille",
+    name: "BUA Provisoire Belle-Beille",
+    resourceIds: ["5420", "5421"],
+    mapObject: "map-belle-beille.webp"
+  }
 });
 
-const UPSTREAM_HEADERS = Object.freeze({
+const DEFAULT_SITE = "bua-st-serge";
+const CACHE_TTL = 60;
+
+const BASE_UPSTREAM_HEADERS = Object.freeze({
   "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Referer": `https://affluences.com/fr/sites/${CONFIG.siteSlug}/reservation`,
   "Cache-Control": "no-cache"
 });
 
@@ -25,15 +36,14 @@ const SECURITY_HEADERS = {
 
 const JSON_HEADERS = Object.freeze({
   "Content-Type": "application/json",
-  "Cache-Control": `public, max-age=${CONFIG.cacheTtl}`,
+  "Cache-Control": `public, max-age=${CACHE_TTL}`,
   ...SECURITY_HEADERS
 });
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const SEAT_REGEX = /^(\d+)/;
 
-let KV_CACHE = null;
-let KV_CACHE_EXPIRY = 0;
+const KV_CACHES = new Map();
 const KV_TTL_MS = 5 * 60 * 1000; // 5 minutes in-memory refresh window
 
 function getTodayInFrance() {
@@ -43,6 +53,14 @@ function getTodayInFrance() {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date());
+}
+
+function getSiteConfig(url) {
+  const param = url.searchParams.get("site");
+  if (param && SITES[param]) {
+    return SITES[param];
+  }
+  return SITES[DEFAULT_SITE];
 }
 
 // =============================================================================
@@ -69,8 +87,12 @@ export default {
     // ---------------------------------------------------------
     // R2 IMAGE HANDLER
     // ---------------------------------------------------------
-    if (url.pathname === "/assets/map.webp") {
-      const object = await env.MAP_BUCKET.get("plan-bu.webp");
+    if (url.pathname === "/assets/map.webp" || url.pathname === "/assets/map-belle-beille.webp") {
+      let objectKey = "plan-bu.webp";
+      if (url.pathname === "/assets/map-belle-beille.webp" || url.searchParams.get("site") === "bua-provisoire-belle-beille") {
+        objectKey = "map-belle-beille.webp";
+      }
+      const object = await env.MAP_BUCKET.get(objectKey);
       if (object === null) {
         return new Response("Image Not Found", { status: 404, headers: SECURITY_HEADERS });
       }
@@ -83,6 +105,13 @@ export default {
 
     try {
       // ---------------------------------------------------------
+      // SITES LIST HANDLER
+      // ---------------------------------------------------------
+      if (url.pathname === "/api/sites") {
+        return new Response(JSON.stringify(SITES), { headers: JSON_HEADERS });
+      }
+
+      // ---------------------------------------------------------
       // API HANDLER (Live Availability)
       // ---------------------------------------------------------
       if (url.pathname === "/api/load_day") {
@@ -93,18 +122,22 @@ export default {
       // CONFIG HANDLER (Exposes KV data to the Frontend)
       // ---------------------------------------------------------
       if (url.pathname === "/api/config") {
+        const siteConfig = getSiteConfig(url);
         const now = Date.now();
-        if (!KV_CACHE || now > KV_CACHE_EXPIRY) {
-          const fresh = await env.SEATS_KV.get(CONFIG.siteSlug, { type: "json" });
+        let cached = KV_CACHES.get(siteConfig.slug);
+
+        if (!cached || now > cached.expiry) {
+          const fresh = await env.SEATS_KV.get(siteConfig.slug, { type: "json" });
           if (fresh) {
-            KV_CACHE = fresh;
-            KV_CACHE_EXPIRY = now + KV_TTL_MS;
+            cached = { data: fresh, expiry: now + KV_TTL_MS };
+            KV_CACHES.set(siteConfig.slug, cached);
           }
         }
-        if (!KV_CACHE) {
-          return new Response(JSON.stringify({ error: "Seat config missing in KV" }), { status: 500, headers: JSON_HEADERS });
+
+        if (!cached?.data) {
+          return new Response(JSON.stringify({ error: `Seat config missing in KV for ${siteConfig.slug}` }), { status: 500, headers: JSON_HEADERS });
         }
-        return new Response(JSON.stringify(KV_CACHE), { headers: JSON_HEADERS });
+        return new Response(JSON.stringify(cached.data), { headers: JSON_HEADERS });
       }
 
       return new Response(JSON.stringify({ error: "API Route Not Found" }), { status: 404, headers: JSON_HEADERS });
@@ -124,11 +157,12 @@ export default {
 // =============================================================================
 
 async function handleApiRequest(request, url, ctx) {
+  const siteConfig = getSiteConfig(url);
   const rawDate = url.searchParams.get("date");
   const dateParam = (rawDate && DATE_REGEX.test(rawDate)) ? rawDate : getTodayInFrance();
   
   // Normalized cache key: ignore extra arbitrary query params (e.g. cache busters)
-  const cacheUrl = new URL(`${url.origin}${url.pathname}?date=${dateParam}`);
+  const cacheUrl = new URL(`${url.origin}${url.pathname}?site=${siteConfig.slug}&date=${dateParam}`);
   const cacheKey = new Request(cacheUrl.toString(), { method: "GET" });
   const cache = caches.default;
   const forceRefresh = url.searchParams.get("force") === "true";
@@ -138,7 +172,7 @@ async function handleApiRequest(request, url, ctx) {
 
   if (!response) {
     try {
-      const result = await fetchAllUpstreamData(dateParam);
+      const result = await fetchAllUpstreamData(siteConfig, dateParam);
       if (result.isClosed || Object.keys(result.data).length === 0) {
         response = new Response(JSON.stringify({}), { headers: JSON_HEADERS, status: 200 });
       } else {
@@ -146,7 +180,7 @@ async function handleApiRequest(request, url, ctx) {
       }
       ctx.waitUntil(cache.put(cacheKey, response.clone()));
     } catch (err) {
-      console.error("Upstream fetch error:", err);
+      console.error(`Upstream fetch error for ${siteConfig.slug}:`, err);
       return new Response(JSON.stringify({ error: "Upstream failure" }), { status: 503, headers: JSON_HEADERS });
     }
   }
@@ -154,11 +188,11 @@ async function handleApiRequest(request, url, ctx) {
 }
 
 // =============================================================================
-// 4. BACKEND LOGIC (Efficient Scraper)
+// 4. BACKEND LOGIC (Scraper)
 // =============================================================================
 
-async function fetchAllUpstreamData(targetDate) {
-  const promises = CONFIG.resourceIds.map(id => fetchUpstreamDataForId(targetDate, id));
+async function fetchAllUpstreamData(siteConfig, targetDate) {
+  const promises = siteConfig.resourceIds.map(id => fetchUpstreamDataForId(siteConfig.slug, targetDate, id));
   const results = await Promise.all(promises);
   let mergedData = Object.create(null);
   let allClosed = true;
@@ -170,10 +204,15 @@ async function fetchAllUpstreamData(targetDate) {
   return { data: mergedData, isClosed: allClosed };
 }
 
-async function fetchUpstreamDataForId(targetDate, typeId) {
-  const targetUrl = `https://affluences.com/fr/sites/${CONFIG.siteSlug}/reservation?type=${encodeURIComponent(typeId)}&date=${encodeURIComponent(targetDate)}`;
+async function fetchUpstreamDataForId(siteSlug, targetDate, typeId) {
+  const targetUrl = `https://affluences.com/fr/sites/${siteSlug}/reservation?type=${encodeURIComponent(typeId)}&date=${encodeURIComponent(targetDate)}`;
+  const headers = {
+    ...BASE_UPSTREAM_HEADERS,
+    "Referer": `https://affluences.com/fr/sites/${siteSlug}/reservation`
+  };
+
   try {
-    const resp = await fetch(targetUrl, { headers: UPSTREAM_HEADERS });
+    const resp = await fetch(targetUrl, { headers });
     if (!resp.ok) return { data: {}, isClosed: false };
 
     let jsonString = "";
@@ -198,7 +237,7 @@ async function fetchUpstreamDataForId(targetDate, typeId) {
     if (resources.length > 0) parseResources(resources, map, typeId);
     return { data: map, isClosed: false };
   } catch (e) {
-    console.error(`Fetch failed for type ${typeId}:`, e);
+    console.error(`Fetch failed for ${siteSlug} type ${typeId}:`, e);
     throw e; 
   }
 }
@@ -213,6 +252,8 @@ function parseResources(resources, map, typeId) {
     const desc = (res.description || "").toLowerCase();
     const hasPlug = desc.includes("prise") && !desc.includes("proximit");
     const hasLight = desc.includes("lampe");
+    const isComputer = desc.includes("ordinateur");
+    const isGroup = (res.capacity && res.capacity > 1);
     
     const freeSlots = (res.hours || [])
       .filter(h => h.state === 'available')
@@ -223,7 +264,11 @@ function parseResources(resources, map, typeId) {
         slots: freeSlots,
         hasPlug,
         hasLight,
+        isComputer,
+        isGroup,
+        capacity: res.capacity || 1,
         resourceId: res.resource_id,
+        resourceName: res.resource_name,
         typeId: typeId
       };
     }

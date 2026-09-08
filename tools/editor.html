@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éditeur de Plan & Coordonnées BU</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --panel-border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #10b981;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Top Toolbar */
+        header {
+            height: 52px;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .brand span {
+            color: var(--primary);
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button, select, input[type="text"], input[type="number"] {
+            background: #334155;
+            color: var(--text-main);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        button:hover {
+            background: #475569;
+            border-color: #64748b;
+        }
+
+        button.primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        button.primary:hover {
+            background: var(--primary-hover);
+        }
+
+        button.danger {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--danger);
+            color: #fca5a5;
+        }
+
+        button.danger:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Main Workspace */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background: #020617;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* Sidebar */
+        aside {
+            width: 320px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .sidebar-section h3 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-row {
+            margin-bottom: 12px;
+        }
+
+        .form-row label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .form-row input, .form-row select {
+            width: 100%;
+            cursor: auto;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 6px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .checkbox-row input {
+            cursor: pointer;
+        }
+
+        /* Box List */
+        .box-list {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 240px;
+        }
+
+        .box-item {
+            padding: 8px 12px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+        }
+
+        .box-item:hover {
+            background: #334155;
+        }
+
+        .box-item.active {
+            background: #2563eb33;
+            border-left: 3px solid var(--primary);
+            font-weight: 600;
+        }
+
+        /* JSON Export Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            width: 680px;
+            max-width: 90vw;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 16px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            background: #090d16;
+            color: #38bdf8;
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            resize: none;
+        }
+
+        .code-snippet {
+            background: #090d16;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #a7f3d0;
+            margin-top: 8px;
+            user-select: all;
+            overflow-x: auto;
+        }
+
+        .modal-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--panel-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        /* Tooltip hint */
+        .hint-bar {
+            position: absolute;
+            bottom: 12px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--panel-border);
+            font-size: 12px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <span>📐</span> Plan BU : Éditeur de Coordonnées
+        </div>
+
+        <div class="toolbar-group">
+            <select id="presetSelect">
+                <option value="belle-beille">BU Belle-Beille (La Provisoire)</option>
+                <option value="st-serge">BU Saint-Serge</option>
+                <option value="custom">Charger une image...</option>
+            </select>
+            <input type="file" id="fileInput" accept="image/*" style="display:none">
+
+            <button id="btnZoomFit">Ajuster vue</button>
+            <button id="btnAddBox">+ Nouveau Bloc</button>
+        </div>
+
+        <div class="toolbar-group">
+            <button id="btnImportJson">Importer JSON</button>
+            <button id="btnExportJson" class="primary">Exporter pour Cloudflare KV</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="canvas-area" id="canvasContainer">
+            <canvas id="editorCanvas"></canvas>
+            <div class="hint-bar">
+                Clic gauche : sélectionner / déplacer • Poignées : redimensionner • Molette / Glisser droit : zoom & panoramique • Flèches : déplacer d'un pixel
+            </div>
+        </div>
+
+        <aside>
+            <div class="sidebar-section">
+                <h3>Bloc Sélectionné</h3>
+                <div id="inspectorEmpty" style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 0;">
+                    Sélectionnez ou créez un bloc sur le plan
+                </div>
+
+                <div id="inspectorForm" style="display: none;">
+                    <div class="form-row">
+                        <label>Identifiant du Bloc</label>
+                        <input type="text" id="propKey" placeholder="ex: 100-107 ou Carrel 2.1">
+                    </div>
+
+                    <div class="form-row">
+                        <label>Type de Bloc</label>
+                        <select id="propMode">
+                            <option value="range">Plage de places (ex: 100 à 107)</option>
+                            <option value="single">Place / Carré Unique (ex: Carrel 2.1)</option>
+                        </select>
+                    </div>
+
+                    <div id="rowRange" class="form-row grid-2">
+                        <div>
+                            <label>Début (Start)</label>
+                            <input type="number" id="propStart">
+                        </div>
+                        <div>
+                            <label>Fin (End)</label>
+                            <input type="number" id="propEnd">
+                        </div>
+                    </div>
+
+                    <div id="rowSingle" class="form-row" style="display:none;">
+                        <label>Libellé affiché</label>
+                        <input type="text" id="propLabel" placeholder="ex: Carrel 2.1 (4 pl.)">
+                    </div>
+
+                    <div class="form-row grid-2">
+                        <div>
+                            <label>Disposition</label>
+                            <select id="propLayout">
+                                <option value="single">Single (1 rangée)</option>
+                                <option value="double">Double (2 rangées face-à-face)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Orientation</label>
+                            <select id="propDirection">
+                                <option value="vertical">Vertical</option>
+                                <option value="horizontal">Horizontal</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row checkbox-row">
+                        <input type="checkbox" id="propInvert">
+                        <label for="propInvert">Inverser l'ordre des places</label>
+                    </div>
+
+                    <div class="form-row">
+                        <label>Coordonnées (%) [ X | Y | W | H ]</label>
+                        <div class="grid-4">
+                            <input type="number" id="propX" step="0.01">
+                            <input type="number" id="propY" step="0.01">
+                            <input type="number" id="propW" step="0.01">
+                            <input type="number" id="propH" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="form-row grid-2" style="margin-top: 16px;">
+                        <button id="btnDuplicateBox">Dupliquer</button>
+                        <button id="btnDeleteBox" class="danger">Supprimer</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column;">
+                <h3>Liste des Blocs (<span id="boxCount">0</span>)</h3>
+                <div class="box-list" id="boxList"></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Exportation Cloudflare KV</h3>
+                <button id="btnCloseModal">✖</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
+                    JSON des coordonnées configurées :
+                </p>
+                <textarea id="jsonOutput" readonly></textarea>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">
+                    Commande pour déployer directement dans votre Cloudflare KV :
+                </p>
+                <div class="code-snippet" id="wranglerCommand"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="btnDownloadJson">Télécharger .json</button>
+                <button id="btnCopyJson" class="primary">Copier le JSON</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Importer une configuration JSON</h3>
+                <button id="btnCloseImportModal">✖</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
+                    Collez le contenu JSON de la configuration :
+                </p>
+                <textarea id="jsonInput" placeholder='{"100-107": { ... }}'></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="btnApplyImport" class="primary">Appliquer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Preset configurations
+        const BELLE_BEILLE_INITIAL_SEATS = {
+            "100-107": { "x": "12.372", "y": "44.435", "w": "3.592", "h": "12.621", "layout": "double", "direction": "vertical", "start": 100, "end": 107 },
+            "108-115": { "x": "19.555", "y": "44.435", "w": "3.592", "h": "12.621", "layout": "double", "direction": "vertical", "start": 108, "end": 115 },
+            "116-123": { "x": "26.853", "y": "44.435", "w": "3.592", "h": "12.621", "layout": "double", "direction": "vertical", "start": 116, "end": 123 },
+            "124-131": { "x": "34.065", "y": "44.435", "w": "3.592", "h": "12.621", "layout": "double", "direction": "vertical", "start": 124, "end": 131 },
+            "Carrel 2.1": { "x": "63.712", "y": "47.581", "w": "6.271", "h": "9.677", "layout": "single", "direction": "horizontal", "id": "Carrel 2.1", "label": "Carrel 2.1 (4 pl.)" },
+            "Carrel 2.2": { "x": "63.712", "y": "57.863", "w": "6.271", "h": "9.073", "layout": "single", "direction": "horizontal", "id": "Carrel 2.2", "label": "Carrel 2.2 (4 pl.)" },
+            "Carrel 3.1": { "x": "70.410", "y": "47.581", "w": "6.271", "h": "9.677", "layout": "single", "direction": "horizontal", "id": "Carrel 3.1", "label": "Carrel 3.1 (4 pl.)" },
+            "Carrel 3.2": { "x": "70.410", "y": "57.863", "w": "6.271", "h": "9.073", "layout": "single", "direction": "horizontal", "id": "Carrel 3.2", "label": "Carrel 3.2 (4 pl.)" },
+            "200-203": { "x": "77.081", "y": "54.879", "w": "2.223", "h": "11.976", "layout": "single", "direction": "vertical", "start": 200, "end": 203 },
+            "204-207": { "x": "80.958", "y": "54.879", "w": "2.252", "h": "11.976", "layout": "single", "direction": "vertical", "start": 204, "end": 207 },
+            "208-213": { "x": "83.552", "y": "48.750", "w": "2.223", "h": "18.105", "layout": "single", "direction": "vertical", "start": 208, "end": 213 },
+            "214-221": { "x": "93.330", "y": "48.750", "w": "2.223", "h": "18.105", "layout": "single", "direction": "vertical", "start": 214, "end": 221 }
+        };
+
+        const canvas = document.getElementById('editorCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvasContainer');
+
+        let bgImage = new Image();
+        let mapLoaded = false;
+        let activeKey = null;
+        let boxes = JSON.parse(JSON.stringify(BELLE_BEILLE_INITIAL_SEATS));
+
+        // Pan & Zoom state
+        let view = { x: 0, y: 0, scale: 1 };
+        let isPanning = false;
+        let panStart = { x: 0, y: 0 };
+
+        // Interaction state
+        let dragMode = null; // 'move', 'resize'
+        let activeHandle = null;
+        let dragStartMouse = { x: 0, y: 0 };
+        let initialBoxState = null;
+        const HANDLE_SIZE = 8;
+
+        // Load Preset
+        function loadPreset(preset) {
+            if (preset === 'belle-beille') {
+                bgImage.src = '../frontend/assets/map-belle-beille.png';
+                boxes = JSON.parse(JSON.stringify(BELLE_BEILLE_INITIAL_SEATS));
+            } else if (preset === 'st-serge') {
+                bgImage.src = '../frontend/assets/map.webp';
+                fetch('https://plan-bu-backend.hdbdt1597-cloudflare.workers.dev/api/config')
+                    .then(res => res.json())
+                    .then(data => {
+                        boxes = data;
+                        renderBoxList();
+                        fitView();
+                    }).catch(() => {});
+            }
+        }
+
+        bgImage.onload = () => {
+            mapLoaded = true;
+            fitView();
+            renderBoxList();
+            render();
+        };
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth * window.devicePixelRatio;
+            canvas.height = container.clientHeight * window.devicePixelRatio;
+            canvas.style.width = container.clientWidth + 'px';
+            canvas.style.height = container.clientHeight + 'px';
+            render();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function fitView() {
+            if (!bgImage.naturalWidth) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            const imgAspect = bgImage.naturalWidth / bgImage.naturalHeight;
+            const containerAspect = w / h;
+
+            if (containerAspect > imgAspect) {
+                view.scale = (h * 0.9) / bgImage.naturalHeight;
+            } else {
+                view.scale = (w * 0.9) / bgImage.naturalWidth;
+            }
+
+            view.x = (w - bgImage.naturalWidth * view.scale) / 2;
+            view.y = (h - bgImage.naturalHeight * view.scale) / 2;
+            render();
+        }
+
+        // Coordinate transforms
+        function screenToImage(sx, sy) {
+            return {
+                x: (sx - view.x) / view.scale,
+                y: (sy - view.y) / view.scale
+            };
+        }
+
+        function imageToScreen(ix, iy) {
+            return {
+                x: ix * view.scale + view.x,
+                y: iy * view.scale + view.y
+            };
+        }
+
+        function getBoxPixels(box) {
+            const bx = (parseFloat(box.x) / 100) * bgImage.naturalWidth;
+            const by = (parseFloat(box.y) / 100) * bgImage.naturalHeight;
+            const bw = (parseFloat(box.w) / 100) * bgImage.naturalWidth;
+            const bh = (parseFloat(box.h) / 100) * bgImage.naturalHeight;
+            return { x: bx, y: by, w: bw, h: bh };
+        }
+
+        function getHandles(bx, by, bw, bh) {
+            return {
+                tl: { x: bx, y: by },
+                tr: { x: bx + bw, y: by },
+                br: { x: bx + bw, y: by + bh },
+                bl: { x: bx, y: by + bh },
+                tc: { x: bx + bw / 2, y: by },
+                bc: { x: bx + bw / 2, y: by + bh },
+                ml: { x: bx, y: by + bh / 2 },
+                mr: { x: bx + bw, y: by + bh / 2 },
+            };
+        }
+
+        function render() {
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, container.clientWidth, container.clientHeight);
+
+            if (!mapLoaded) return;
+
+            // Draw map image
+            ctx.save();
+            ctx.translate(view.x, view.y);
+            ctx.scale(view.scale, view.scale);
+            ctx.drawImage(bgImage, 0, 0);
+
+            // Draw all seat boxes
+            Object.entries(boxes).forEach(([key, box]) => {
+                const isSelected = key === activeKey;
+                const { x, y, w, h } = getBoxPixels(box);
+
+                // Box background
+                ctx.fillStyle = isSelected ? 'rgba(37, 99, 235, 0.45)' : 'rgba(16, 185, 129, 0.35)';
+                ctx.fillRect(x, y, w, h);
+
+                // Box border
+                ctx.strokeStyle = isSelected ? '#38bdf8' : '#34d399';
+                ctx.lineWidth = isSelected ? 2.5 / view.scale : 1.5 / view.scale;
+                ctx.strokeRect(x, y, w, h);
+
+                // Draw seats inside
+                drawSeatsPreview(box, x, y, w, h, isSelected);
+            });
+
+            ctx.restore();
+
+            // Draw handles on top for selected box (in screen space)
+            if (activeKey && boxes[activeKey]) {
+                const box = boxes[activeKey];
+                const bp = getBoxPixels(box);
+                const sp = imageToScreen(bp.x, bp.y);
+                const sw = bp.w * view.scale;
+                const sh = bp.h * view.scale;
+                const handles = getHandles(sp.x, sp.y, sw, sh);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#0284c7';
+                ctx.lineWidth = 2;
+
+                Object.values(handles).forEach(h => {
+                    ctx.beginPath();
+                    ctx.rect(h.x - HANDLE_SIZE / 2, h.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+                    ctx.fill();
+                    ctx.stroke();
+                });
+            }
+        }
+
+        function drawSeatsPreview(box, bx, by, bw, bh, isSelected) {
+            let ids = [];
+            if (box.id) ids = [box.id.toString()];
+            else if (box.start !== undefined && box.end !== undefined) {
+                const c = parseInt(box.end) - parseInt(box.start) + 1;
+                for (let i = 0; i < c; i++) ids.push((parseInt(box.start) + i).toString());
+            }
+
+            if (ids.length === 0) return;
+
+            const isDouble = box.layout === 'double';
+            const dir = box.direction || 'horizontal';
+            let cols = 1, rows = 1;
+
+            if (dir === 'horizontal') {
+                rows = isDouble ? 2 : 1;
+                cols = isDouble ? Math.ceil(ids.length / 2) : ids.length;
+            } else {
+                cols = isDouble ? 2 : 1;
+                rows = isDouble ? Math.ceil(ids.length / 2) : ids.length;
+            }
+
+            if (isDouble) {
+                const m = Math.ceil(ids.length / 2);
+                ids = box.invert ? [...ids.slice(m).reverse(), ...ids.slice(0, m)] : [...ids.slice(0, m), ...ids.slice(m).reverse()];
+            } else if (box.invert) {
+                ids.reverse();
+            }
+
+            const GAP = 2 / view.scale;
+            const seatW = (bw - (GAP * (cols - 1))) / cols;
+            const seatH = (bh - (GAP * (rows - 1))) / rows;
+
+            ctx.font = `bold ${Math.max(9, Math.min(13, seatH * 0.4))}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ids.forEach((seatId, idx) => {
+                const col = dir === 'horizontal' ? (idx % cols) : Math.floor(idx / rows);
+                const row = dir === 'horizontal' ? Math.floor(idx / cols) : (idx % rows);
+                const sx = bx + col * (seatW + GAP);
+                const sy = by + row * (seatH + GAP);
+
+                ctx.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 1 / view.scale;
+                ctx.strokeRect(sx, sy, seatW, seatH);
+
+                ctx.fillStyle = isSelected ? '#ffffff' : '#f1f5f9';
+                const label = seatId.replace(/^Carrel\s*/, 'C');
+                ctx.fillText(label, sx + seatW / 2, sy + seatH / 2);
+            });
+        }
+
+        // Pointer Events for Drag, Pan & Resize
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Right click or Space = Pan
+            if (e.button === 2 || e.button === 1 || e.shiftKey) {
+                isPanning = true;
+                panStart = { x: mouseX - view.x, y: mouseY - view.y };
+                return;
+            }
+
+            // Check if clicked a resize handle
+            if (activeKey && boxes[activeKey]) {
+                const box = boxes[activeKey];
+                const bp = getBoxPixels(box);
+                const sp = imageToScreen(bp.x, bp.y);
+                const handles = getHandles(sp.x, sp.y, bp.w * view.scale, bp.h * view.scale);
+
+                for (const [name, pos] of Object.entries(handles)) {
+                    if (Math.abs(mouseX - pos.x) <= HANDLE_SIZE && Math.abs(mouseY - pos.y) <= HANDLE_SIZE) {
+                        dragMode = 'resize';
+                        activeHandle = name;
+                        dragStartMouse = { x: mouseX, y: mouseY };
+                        initialBoxState = { ...box };
+                        return;
+                    }
+                }
+            }
+
+            // Check if clicked inside any box
+            const imgPt = screenToImage(mouseX, mouseY);
+            let hitKey = null;
+
+            for (const [key, box] of Object.entries(boxes)) {
+                const bp = getBoxPixels(box);
+                if (imgPt.x >= bp.x && imgPt.x <= bp.x + bp.w && imgPt.y >= bp.y && imgPt.y <= bp.y + bp.h) {
+                    hitKey = key;
+                    break;
+                }
+            }
+
+            if (hitKey) {
+                selectBox(hitKey);
+                dragMode = 'move';
+                dragStartMouse = { x: mouseX, y: mouseY };
+                initialBoxState = { ...boxes[hitKey] };
+            } else {
+                selectBox(null);
+            }
+            render();
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (isPanning) {
+                view.x = mouseX - panStart.x;
+                view.y = mouseY - panStart.y;
+                render();
+                return;
+            }
+
+            if (dragMode === 'move' && activeKey && boxes[activeKey]) {
+                const dx = (mouseX - dragStartMouse.x) / view.scale;
+                const dy = (mouseY - dragStartMouse.y) / view.scale;
+
+                const initBp = getBoxPixels(initialBoxState);
+                const newX = ((initBp.x + dx) / bgImage.naturalWidth) * 100;
+                const newY = ((initBp.y + dy) / bgImage.naturalHeight) * 100;
+
+                boxes[activeKey].x = newX.toFixed(3);
+                boxes[activeKey].y = newY.toFixed(3);
+                updateInspectorFromActiveBox();
+                render();
+                return;
+            }
+
+            if (dragMode === 'resize' && activeKey && boxes[activeKey]) {
+                const dx = (mouseX - dragStartMouse.x) / view.scale;
+                const dy = (mouseY - dragStartMouse.y) / view.scale;
+
+                let bp = getBoxPixels(initialBoxState);
+                let { x, y, w, h } = bp;
+
+                if (activeHandle.includes('r')) w += dx;
+                if (activeHandle.includes('l')) { x += dx; w -= dx; }
+                if (activeHandle.includes('b')) h += dy;
+                if (activeHandle.includes('t')) { y += dy; h -= dy; }
+
+                if (w > 10 && h > 10) {
+                    boxes[activeKey].x = ((x / bgImage.naturalWidth) * 100).toFixed(3);
+                    boxes[activeKey].y = ((y / bgImage.naturalHeight) * 100).toFixed(3);
+                    boxes[activeKey].w = ((w / bgImage.naturalWidth) * 100).toFixed(3);
+                    boxes[activeKey].h = ((h / bgImage.naturalHeight) * 100).toFixed(3);
+                    updateInspectorFromActiveBox();
+                    render();
+                }
+                return;
+            }
+        });
+
+        window.addEventListener('pointerup', () => {
+            isPanning = false;
+            dragMode = null;
+            activeHandle = null;
+        });
+
+        // Wheel Zoom
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+            const newScale = Math.max(0.1, Math.min(10, view.scale * zoomFactor));
+
+            view.x = mouseX - (mouseX - view.x) * (newScale / view.scale);
+            view.y = mouseY - (mouseY - view.y) * (newScale / view.scale);
+            view.scale = newScale;
+            render();
+        }, { passive: false });
+
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Keyboard navigation
+        window.addEventListener('keydown', (e) => {
+            if (!activeKey || !boxes[activeKey] || document.activeElement.tagName === 'INPUT') return;
+
+            const step = e.shiftKey ? 0.5 : 0.05;
+            let changed = false;
+
+            if (e.key === 'ArrowLeft') { boxes[activeKey].x = (parseFloat(boxes[activeKey].x) - step).toFixed(3); changed = true; }
+            if (e.key === 'ArrowRight') { boxes[activeKey].x = (parseFloat(boxes[activeKey].x) + step).toFixed(3); changed = true; }
+            if (e.key === 'ArrowUp') { boxes[activeKey].y = (parseFloat(boxes[activeKey].y) - step).toFixed(3); changed = true; }
+            if (e.key === 'ArrowDown') { boxes[activeKey].y = (parseFloat(boxes[activeKey].y) + step).toFixed(3); changed = true; }
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                deleteSelectedBox();
+                return;
+            }
+
+            if (changed) {
+                e.preventDefault();
+                updateInspectorFromActiveBox();
+                render();
+            }
+        });
+
+        // Sidebar & Inspector logic
+        function selectBox(key) {
+            activeKey = key;
+            document.querySelectorAll('.box-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.key === key);
+            });
+
+            if (!key || !boxes[key]) {
+                document.getElementById('inspectorEmpty').style.display = 'block';
+                document.getElementById('inspectorForm').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('inspectorEmpty').style.display = 'none';
+            document.getElementById('inspectorForm').style.display = 'block';
+            updateInspectorFromActiveBox();
+        }
+
+        function updateInspectorFromActiveBox() {
+            const b = boxes[activeKey];
+            if (!b) return;
+
+            document.getElementById('propKey').value = activeKey;
+            const isRange = b.start !== undefined && b.end !== undefined;
+            document.getElementById('propMode').value = isRange ? 'range' : 'single';
+            document.getElementById('rowRange').style.display = isRange ? 'grid' : 'none';
+            document.getElementById('rowSingle').style.display = isRange ? 'none' : 'block';
+
+            if (isRange) {
+                document.getElementById('propStart').value = b.start;
+                document.getElementById('propEnd').value = b.end;
+            } else {
+                document.getElementById('propLabel').value = b.label || b.id || '';
+            }
+
+            document.getElementById('propLayout').value = b.layout || 'single';
+            document.getElementById('propDirection').value = b.direction || 'vertical';
+            document.getElementById('propInvert').checked = !!b.invert;
+
+            document.getElementById('propX').value = b.x;
+            document.getElementById('propY').value = b.y;
+            document.getElementById('propW').value = b.w;
+            document.getElementById('propH').value = b.h;
+        }
+
+        function saveInspectorChanges() {
+            if (!activeKey || !boxes[activeKey]) return;
+            const oldKey = activeKey;
+            const newKey = document.getElementById('propKey').value.trim();
+            if (!newKey) return;
+
+            const mode = document.getElementById('propMode').value;
+            const updated = {
+                x: parseFloat(document.getElementById('propX').value).toFixed(3),
+                y: parseFloat(document.getElementById('propY').value).toFixed(3),
+                w: parseFloat(document.getElementById('propW').value).toFixed(3),
+                h: parseFloat(document.getElementById('propH').value).toFixed(3),
+                layout: document.getElementById('propLayout').value,
+                direction: document.getElementById('propDirection').value
+            };
+
+            if (document.getElementById('propInvert').checked) updated.invert = true;
+
+            if (mode === 'range') {
+                updated.start = parseInt(document.getElementById('propStart').value);
+                updated.end = parseInt(document.getElementById('propEnd').value);
+            } else {
+                updated.id = newKey;
+                updated.label = document.getElementById('propLabel').value.trim() || newKey;
+            }
+
+            if (newKey !== oldKey) {
+                delete boxes[oldKey];
+                boxes[newKey] = updated;
+                activeKey = newKey;
+            } else {
+                boxes[activeKey] = updated;
+            }
+
+            renderBoxList();
+            render();
+        }
+
+        // Wire form change events
+        ['propKey', 'propMode', 'propStart', 'propEnd', 'propLabel', 'propLayout', 'propDirection', 'propInvert', 'propX', 'propY', 'propW', 'propH'].forEach(id => {
+            document.getElementById(id).addEventListener('input', saveInspectorChanges);
+            document.getElementById(id).addEventListener('change', saveInspectorChanges);
+        });
+
+        function renderBoxList() {
+            const listEl = document.getElementById('boxList');
+            listEl.innerHTML = '';
+            const keys = Object.keys(boxes);
+            document.getElementById('boxCount').innerText = keys.length;
+
+            keys.forEach(k => {
+                const item = document.createElement('div');
+                item.className = 'box-item' + (k === activeKey ? ' active' : '');
+                item.dataset.key = k;
+                item.innerHTML = `<span>${k}</span><span style="color:var(--text-muted);font-size:11px;">${boxes[k].layout || 'single'}</span>`;
+                item.onclick = () => { selectBox(k); render(); };
+                listEl.appendChild(item);
+            });
+        }
+
+        function deleteSelectedBox() {
+            if (!activeKey) return;
+            delete boxes[activeKey];
+            selectBox(null);
+            renderBoxList();
+            render();
+        }
+        document.getElementById('btnDeleteBox').onclick = deleteSelectedBox;
+
+        document.getElementById('btnDuplicateBox').onclick = () => {
+            if (!activeKey || !boxes[activeKey]) return;
+            const newKey = activeKey + '_copy';
+            const clone = JSON.parse(JSON.stringify(boxes[activeKey]));
+            clone.x = (parseFloat(clone.x) + 1).toFixed(3);
+            clone.y = (parseFloat(clone.y) + 1).toFixed(3);
+            boxes[newKey] = clone;
+            renderBoxList();
+            selectBox(newKey);
+            render();
+        };
+
+        document.getElementById('btnAddBox').onclick = () => {
+            const count = Object.keys(boxes).length + 1;
+            const newKey = `bloc_${count}`;
+            boxes[newKey] = {
+                x: "50.000",
+                y: "50.000",
+                w: "4.000",
+                h: "12.000",
+                layout: "double",
+                direction: "vertical",
+                start: 100,
+                end: 107
+            };
+            renderBoxList();
+            selectBox(newKey);
+            render();
+        };
+
+        document.getElementById('btnZoomFit').onclick = fitView;
+
+        // Preset switcher
+        document.getElementById('presetSelect').onchange = (e) => {
+            if (e.target.value === 'custom') {
+                document.getElementById('fileInput').click();
+            } else {
+                loadPreset(e.target.value);
+            }
+        };
+
+        document.getElementById('fileInput').onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    bgImage.src = evt.target.result;
+                    boxes = {};
+                    renderBoxList();
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        // Export Modal logic
+        const exportModal = document.getElementById('exportModal');
+        document.getElementById('btnExportJson').onclick = () => {
+            const jsonStr = JSON.stringify(boxes, null, 2);
+            document.getElementById('jsonOutput').value = jsonStr;
+            const siteSlug = document.getElementById('presetSelect').value === 'belle-beille' ? 'bua-provisoire-belle-beille' : 'bua-st-serge';
+            document.getElementById('wranglerCommand').innerText = `npx wrangler kv:key put --namespace-id=3febad8172634d7cb826bfaaa39d014f "${siteSlug}" --path=./backend/seeds/${siteSlug}.json`;
+            exportModal.classList.add('open');
+        };
+
+        document.getElementById('btnCloseModal').onclick = () => exportModal.classList.remove('open');
+        exportModal.onclick = (e) => { if (e.target === exportModal) exportModal.classList.remove('open'); };
+
+        document.getElementById('btnCopyJson').onclick = () => {
+            navigator.clipboard.writeText(document.getElementById('jsonOutput').value);
+            alert('JSON copié dans le presse-papiers !');
+        };
+
+        document.getElementById('btnDownloadJson').onclick = () => {
+            const blob = new Blob([document.getElementById('jsonOutput').value], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bua-provisoire-belle-beille.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        // Import Modal logic
+        const importModal = document.getElementById('importModal');
+        document.getElementById('btnImportJson').onclick = () => importModal.classList.add('open');
+        document.getElementById('btnCloseImportModal').onclick = () => importModal.classList.remove('open');
+        importModal.onclick = (e) => { if (e.target === importModal) importModal.classList.remove('open'); };
+
+        document.getElementById('btnApplyImport').onclick = () => {
+            try {
+                const parsed = JSON.parse(document.getElementById('jsonInput').value);
+                boxes = parsed;
+                renderBoxList();
+                selectBox(null);
+                render();
+                importModal.classList.remove('open');
+            } catch (e) {
+                alert('JSON invalide : ' + e.message);
+            }
+        };
+
+        // Initial setup
+        resizeCanvas();
+        loadPreset('belle-beille');
+    </script>
+</body>
+</html>
