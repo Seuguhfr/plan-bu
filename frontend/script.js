@@ -10,6 +10,7 @@ const SITES = {
         pageTitle: "Plan BU Saint-Serge",
         minHour: 8,
         maxHour: 22,
+        step: 1,
         mapSrc: "./assets/map.webp",
         defaultTypeId: "245"
     },
@@ -17,8 +18,9 @@ const SITES = {
         slug: "bua-provisoire-belle-beille",
         name: "Belle-Beille",
         pageTitle: "Plan BU Belle-Beille (La Provisoire)",
-        minHour: 8,
-        maxHour: 20,
+        minHour: 8.5,
+        maxHour: 19.5,
+        step: 0.5,
         mapSrc: "./assets/map-belle-beille.png",
         defaultTypeId: "5420"
     }
@@ -61,10 +63,20 @@ function getInitialSite() {
     return SITES["bua-st-serge"];
 }
 
+function getInitialHours(site) {
+    const now = new Date();
+    const dec = now.getHours() + (now.getMinutes() >= 30 ? 0.5 : 0);
+    const step = site.step || 1;
+    let start = Math.max(site.minHour, Math.min(site.maxHour, Math.round(dec / step) * step));
+    let end = Math.max(site.minHour, Math.min(site.maxHour, start + (site.slug === 'bua-provisoire-belle-beille' ? 1.0 : 2)));
+    if (end < start) end = start;
+    return { start, end };
+}
+
 let currentSite = getInitialSite();
 let MIN_HOUR = currentSite.minHour;
 let MAX_HOUR = currentSite.maxHour;
-const nowH = new Date().getHours();
+const initialHours = getInitialHours(currentSite);
 
 let LOCATIONS = {};
 let AVAILABILITY = {};
@@ -112,8 +124,8 @@ const els = {
 };
 
 const appState = new Proxy({
-    startHour: Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH)),
-    endHour: Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH + 2)),
+    startHour: initialHours.start,
+    endHour: initialHours.end,
     selectedSeatId: null
 }, {
     set(target, prop, value) {
@@ -672,9 +684,11 @@ async function switchSite(siteSlug, updateUrl = true) {
         localStorage.setItem('bu_selected_site', currentSite.slug);
     } catch (e) {}
 
-    // Clamp active hours to site's bounds
-    appState.startHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, appState.startHour));
-    appState.endHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, appState.endHour));
+    // Clamp and snap active hours to site's bounds and step
+    const step = currentSite.step || 1;
+    appState.startHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, Math.round(appState.startHour / step) * step));
+    appState.endHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, Math.round(appState.endHour / step) * step));
+    if (appState.endHour < appState.startHour) appState.endHour = appState.startHour;
     appState.selectedSeatId = null;
 
     els.actionBar?.classList.remove('visible');
@@ -706,9 +720,11 @@ function updateTimeMarker() {
     
     if (els.dp.value === localToday) {
         const dec = now.getHours() + (now.getMinutes() / 60); 
-        const start = MIN_HOUR + 0.5;
-        if (dec >= start && dec <= (MAX_HOUR + 0.5)) { 
-            els.nowMarker.style.left = (((dec - start) / (MAX_HOUR - MIN_HOUR)) * 100) + '%'; 
+        const isSun = isDateSunday(els.dp.value);
+        const start = currentSite.slug === 'bua-st-serge' ? (isSun ? MIN_HOUR : MIN_HOUR + 0.5) : MIN_HOUR;
+        const end = currentSite.slug === 'bua-st-serge' ? (isSun ? MAX_HOUR + 0.5 : MAX_HOUR + 0.5) : MAX_HOUR;
+        if (dec >= start && dec <= end) { 
+            els.nowMarker.style.left = (((dec - start) / (end - start)) * 100) + '%'; 
             els.nowMarker.style.display = 'block'; 
             return; 
         }
@@ -899,9 +915,17 @@ function updateMapState() {
     const s = Math.min(appState.startHour, appState.endHour);
     const e = Math.max(appState.startHour, appState.endHour);
     const reqSlots = [];
+    const step = currentSite.step || 1;
     
-    if (s === e) reqSlots.push(formatTime(s, isSunday));
-    else for (let h = s; h < e; h++) reqSlots.push(formatTime(h, isSunday));
+    if (s === e) {
+        const slotTime = (s >= MAX_HOUR) ? Math.max(MIN_HOUR, s - step) : s;
+        reqSlots.push(formatTime(slotTime, isSunday));
+    } else {
+        for (let t = s; t < e - 0.01; t += step) {
+            const cleanT = Math.round(t * 100) / 100;
+            reqSlots.push(formatTime(cleanT, isSunday));
+        }
+    }
 
     SEATS.forEach(seat => {
         const d = AVAILABILITY[seat.id];
@@ -1225,7 +1249,14 @@ function setupPointerEvents() {
     canvas.addEventListener('pointercancel', handleUp);
 }
 
-function formatTime(h, isSun) { return (h<10?'0'+h:h) + (isSun?':00':':30'); }
+function formatTime(h, isSun) {
+    if (currentSite.slug === 'bua-provisoire-belle-beille') {
+        const hour = Math.floor(h);
+        const mins = Math.round((h - hour) * 60);
+        return (hour < 10 ? '0' + hour : hour) + ':' + (mins < 10 ? '0' + mins : mins);
+    }
+    return (h < 10 ? '0' + h : h) + (isSun ? ':00' : ':30');
+}
 function showToast(msg, err) { els.toast.innerText = msg; els.toast.style.background = err ? '#ef4444' : '#22c55e'; els.toast.classList.add('visible'); setTimeout(() => els.toast.classList.remove('visible'), 4000); }
 function openBooking(num) {
     recordBookingDay();
@@ -1251,7 +1282,12 @@ function updateSliderUI() {
 
 function setupSlider() {
     let activeThumb = null;
-    const getH = x => { const r = els.slider.getBoundingClientRect(); return Math.round(MIN_HOUR + Math.max(0, Math.min(1, (x - r.left)/r.width)) * (MAX_HOUR - MIN_HOUR)); };
+    const getH = x => {
+        const r = els.slider.getBoundingClientRect();
+        const raw = MIN_HOUR + Math.max(0, Math.min(1, (x - r.left)/r.width)) * (MAX_HOUR - MIN_HOUR);
+        const step = currentSite.step || 1;
+        return Math.round(raw / step) * step;
+    };
     const move = e => { if(!activeThumb) return; const h = getH(e.clientX); if(activeThumb === 'S') appState.startHour = h; else appState.endHour = h; updateSliderUI(); };
     const up = e => { activeThumb = null; els.slider.releasePointerCapture(e.pointerId); els.slider.removeEventListener('pointermove', move); els.slider.removeEventListener('pointerup', up); els.slider.removeEventListener('pointercancel', up); };
     
