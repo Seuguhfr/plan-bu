@@ -1,8 +1,82 @@
-const API_BASE_URL = "https://plan-bu-backend.hdbdt1597-cloudflare.workers.dev";
-const SITE_SLUG = "bua-st-serge";
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? "http://localhost:8787"
+    : "https://plan-bu-backend.hdbdt1597-cloudflare.workers.dev";
 
-const MIN_HOUR = 8, MAX_HOUR = 22;
-const nowH = new Date().getHours();
+
+const SITES = {
+    "bua-st-serge": {
+        slug: "bua-st-serge",
+        name: "Saint-Serge",
+        pageTitle: "Plan BU Saint-Serge",
+        minHour: 8,
+        maxHour: 22,
+        step: 1,
+        mapSrc: "./assets/map.webp",
+        defaultTypeId: "245"
+    },
+    "bua-provisoire-belle-beille": {
+        slug: "bua-provisoire-belle-beille",
+        name: "Belle-Beille",
+        pageTitle: "Plan BU Belle-Beille (La Provisoire)",
+        minHour: 8.5,
+        maxHour: 19.5,
+        step: 0.5,
+        mapSrc: "./assets/map-belle-beille.webp",
+        defaultTypeId: "5420"
+    }
+};
+
+const FALLBACK_CONFIGS = {
+    "bua-provisoire-belle-beille": {
+        "100-107": { "x": "10.590", "y": "53.531", "w": "3.813", "h": "24.568", "layout": "double", "direction": "vertical", "start": 100, "end": 107 },
+        "108-115": { "x": "18.215", "y": "53.531", "w": "3.813", "h": "24.568", "layout": "double", "direction": "vertical", "start": 108, "end": 115 },
+        "116-123": { "x": "25.961", "y": "53.531", "w": "3.813", "h": "24.568", "layout": "double", "direction": "vertical", "start": 116, "end": 123 },
+        "124-131": { "x": "33.616", "y": "53.531", "w": "3.813", "h": "24.568", "layout": "double", "direction": "vertical", "start": 124, "end": 131 },
+        "Carrel 2.1": { "x": "65.217", "y": "63.301", "w": "6.579", "h": "13.909", "layout": "single", "direction": "horizontal", "id": "Carrel 2.1", "label": "Carrel 2.1 (4 pl.)" },
+        "Carrel 2.2": { "x": "65.194", "y": "81.524", "w": "6.546", "h": "13.848", "layout": "single", "direction": "horizontal", "id": "Carrel 2.2", "label": "Carrel 2.2 (4 pl.)" },
+        "Carrel 3.1": { "x": "72.253", "y": "63.552", "w": "6.551", "h": "13.794", "layout": "single", "direction": "horizontal", "id": "Carrel 3.1", "label": "Carrel 3.1 (4 pl.)" },
+        "Carrel 3.2": { "x": "72.253", "y": "81.321", "w": "6.534", "h": "13.994", "layout": "single", "direction": "horizontal", "id": "Carrel 3.2", "label": "Carrel 3.2 (4 pl.)" },
+        "200-203": { "x": "79.274", "y": "73.862", "w": "2.360", "h": "23.313", "layout": "single", "direction": "vertical", "start": 200, "end": 203 },
+        "204-207": { "x": "83.389", "y": "73.862", "w": "2.390", "h": "23.313", "layout": "single", "direction": "vertical", "start": 204, "end": 207 },
+        "208-213": { "x": "86.142", "y": "61.931", "w": "2.360", "h": "35.244", "layout": "single", "direction": "vertical", "start": 208, "end": 213 },
+        "214-221": { "x": "96.521", "y": "61.931", "w": "2.360", "h": "35.244", "layout": "single", "direction": "vertical", "start": 214, "end": 221 }
+    }
+};
+
+function getInitialSite() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const buParam = urlParams.get('bu');
+        if (buParam) {
+            if (buParam === 'belle-beille' || buParam === 'bb' || buParam === 'bua-provisoire-belle-beille') {
+                return SITES["bua-provisoire-belle-beille"];
+            }
+            if (buParam === 'st-serge' || buParam === 'saint-serge' || buParam === 'bua-st-serge') {
+                return SITES["bua-st-serge"];
+            }
+        }
+        const saved = localStorage.getItem('bu_selected_site');
+        if (saved && SITES[saved]) {
+            return SITES[saved];
+        }
+    } catch (e) {}
+    return SITES["bua-st-serge"];
+}
+
+function getInitialHours(site) {
+    const now = new Date();
+    const dec = now.getHours() + (now.getMinutes() >= 30 ? 0.5 : 0);
+    const step = site.step || 1;
+    let start = Math.max(site.minHour, Math.min(site.maxHour, Math.round(dec / step) * step));
+    let end = Math.max(site.minHour, Math.min(site.maxHour, start + (site.slug === 'bua-provisoire-belle-beille' ? 1.0 : 2)));
+    if (end < start) end = start;
+    return { start, end };
+}
+
+let currentSite = getInitialSite();
+let MIN_HOUR = currentSite.minHour;
+let MAX_HOUR = currentSite.maxHour;
+const initialHours = getInitialHours(currentSite);
 
 let LOCATIONS = {};
 let AVAILABILITY = {};
@@ -14,6 +88,7 @@ let hoveredSeatId = null;
 let isFetchingData = true;
 
 const els = {
+    siteSelector: document.getElementById('siteSelector'),
     dp: document.getElementById('datePicker'),
     toast: document.getElementById('toast'),
     slider: document.getElementById('slider'),
@@ -49,8 +124,8 @@ const els = {
 };
 
 const appState = new Proxy({
-    startHour: Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH)),
-    endHour: Math.max(MIN_HOUR, Math.min(MAX_HOUR, nowH + 2)),
+    startHour: initialHours.start,
+    endHour: initialHours.end,
     selectedSeatId: null
 }, {
     set(target, prop, value) {
@@ -121,18 +196,19 @@ function updateActionBarUI() {
     const clickedSeat = SEATS.find(s => s.id === appState.selectedSeatId);
     if (!clickedSeat) return;
 
-    els.barTitle.innerText = "Place " + clickedSeat.id;
+    const isCarrel = clickedSeat.id.toString().startsWith("Carrel");
+    els.barTitle.innerText = isCarrel ? (clickedSeat.label || clickedSeat.id) : ("Place " + clickedSeat.id);
     
     let availHtml = '';
     let btnClass = '';
     let btnText = '';
 
     if (clickedSeat.state === 'free') {
-        availHtml = `<span style="color: #10b981;">Place libre</span>`;
+        availHtml = `<span style="color: #10b981;">${isCarrel ? 'Carré libre' : 'Place libre'}</span>`;
         btnClass = 'btn-primary';
-        btnText = 'Réserver maintenant';
+        btnText = isCarrel ? 'Réserver le carré' : 'Réserver maintenant';
     } else if (clickedSeat.state === 'busy') {
-        availHtml = `<span style="color: #ef4444;">Place occupée</span>`;
+        availHtml = `<span style="color: #ef4444;">${isCarrel ? 'Carré occupé' : 'Place occupée'}</span>`;
         btnClass = 'btn-secondary';
         btnText = 'Voir les disponibilités';
     } else {
@@ -145,10 +221,13 @@ function updateActionBarUI() {
 
     let iconsHtml = '';
     if (clickedSeat.hasPlug) {
-        iconsHtml += `<svg style="width:18px;height:18px;color:var(--plug-color);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="12" height="10" x="6" y="6" rx="2"/><path d="M12 16v6"/></svg>`;
+        iconsHtml += `<svg style="width:18px;height:18px;color:var(--plug-color);" title="Prise électrique individuelle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="12" height="10" x="6" y="6" rx="2"/><path d="M12 16v6"/></svg>`;
     }
     if (clickedSeat.hasLight) {
-        iconsHtml += `<svg style="width:18px;height:18px;color:#eab308;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l4 10H4L8 2Z"/><path d="M12 12v6"/><path d="M8 22h8"/></svg>`;
+        iconsHtml += `<svg style="width:18px;height:18px;color:#eab308;" title="Lampe de bureau" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l4 10H4L8 2Z"/><path d="M12 12v6"/><path d="M8 22h8"/></svg>`;
+    }
+    if (clickedSeat.isComputer) {
+        iconsHtml += `<svg style="width:18px;height:18px;color:#0ea5e9;" title="Poste avec ordinateur fixe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>`;
     }
 
     if (iconsHtml !== '') {
@@ -228,29 +307,53 @@ async function fetchImageWithCache(url) {
 }
 
 async function loadConfig() {
+    const cacheKey = `bu_config_cache_${currentSite.slug}`;
     let cachedConfig = null;
     try {
-        cachedConfig = localStorage.getItem('bu_config_cache');
+        cachedConfig = localStorage.getItem(cacheKey);
     } catch (e) {}
 
     if (cachedConfig) {
         try {
-            LOCATIONS = JSON.parse(cachedConfig);
+            const parsed = JSON.parse(cachedConfig);
+            const isStSerge = Object.keys(parsed).some(k => k.startsWith('3'));
+            if (currentSite.slug === 'bua-provisoire-belle-beille' && isStSerge) {
+                localStorage.removeItem(cacheKey);
+                LOCATIONS = FALLBACK_CONFIGS[currentSite.slug];
+            } else {
+                LOCATIONS = parsed;
+            }
             buildHitGrid();
             requestRender();
         } catch (e) {}
+    } else if (FALLBACK_CONFIGS[currentSite.slug]) {
+        LOCATIONS = FALLBACK_CONFIGS[currentSite.slug];
+        buildHitGrid();
+        requestRender();
     }
     
     try {
-        const res = await fetch(`${API_BASE_URL}/api/config`);
+        const res = await fetch(`${API_BASE_URL}/api/config?site=${currentSite.slug}`);
         if (!res.ok) throw new Error(`Config HTTP ${res.status}`);
         const freshConfig = await res.json();
+
+        // Safety guard: if backend worker hasn't been updated yet, it might return Saint-Serge keys (3xxx)
+        const isStSergeConfig = Object.keys(freshConfig).some(k => k.startsWith('3'));
+        if (currentSite.slug === 'bua-provisoire-belle-beille' && isStSergeConfig) {
+            console.warn("Backend worker renvoie encore la config Saint-Serge pour Belle-Beille. Utilisation du fallback local.");
+            LOCATIONS = FALLBACK_CONFIGS[currentSite.slug];
+            buildHitGrid();
+            updateMapState();
+            requestRender();
+            return;
+        }
+
         const freshString = JSON.stringify(freshConfig);
         
         if (cachedConfig !== freshString) {
             LOCATIONS = freshConfig;
             try {
-                localStorage.setItem('bu_config_cache', freshString);
+                localStorage.setItem(cacheKey, freshString);
             } catch (e) {
                 console.warn("Impossible d'écrire la config dans localStorage:", e);
             }
@@ -259,7 +362,7 @@ async function loadConfig() {
             requestRender();
         }
     } catch (e) {
-        if (!cachedConfig) showToast("Erreur config", true);
+        if (!cachedConfig && !FALLBACK_CONFIGS[currentSite.slug]) showToast("Erreur config", true);
     }
 }
 
@@ -390,8 +493,15 @@ async function init() {
         els.dp.add(new Option(t.charAt(0).toUpperCase() + t.slice(1), localDate));
     }
 
-    // Load map from the assets folder
-    await fetchImageWithCache('./assets/map.webp');
+    // Initialize site selector and document title
+    if (els.siteSelector) {
+        els.siteSelector.value = currentSite.slug;
+        els.siteSelector.addEventListener('change', (e) => switchSite(e.target.value));
+    }
+    document.title = currentSite.pageTitle;
+
+    // Load map for selected site
+    await fetchImageWithCache(currentSite.mapSrc);
     mapBaseHeight = 1600 * (mapImage.naturalHeight / mapImage.naturalWidth);
     centerMap();
 
@@ -552,6 +662,48 @@ async function init() {
     setInterval(updateTimeMarker, 60000);
 }
 
+async function switchSite(siteSlug, updateUrl = true) {
+    if (!SITES[siteSlug]) return;
+    currentSite = SITES[siteSlug];
+    MIN_HOUR = currentSite.minHour;
+    MAX_HOUR = currentSite.maxHour;
+
+    if (els.siteSelector) {
+        els.siteSelector.value = currentSite.slug;
+    }
+
+    document.title = currentSite.pageTitle;
+
+    if (updateUrl) {
+        const shortParam = currentSite.slug === 'bua-provisoire-belle-beille' ? 'belle-beille' : 'st-serge';
+        const newUrl = `${window.location.pathname}?bu=${shortParam}`;
+        window.history.replaceState(null, '', newUrl);
+    }
+
+    try {
+        localStorage.setItem('bu_selected_site', currentSite.slug);
+    } catch (e) {}
+
+    // Clamp and snap active hours to site's bounds and step
+    const step = currentSite.step || 1;
+    appState.startHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, Math.round(appState.startHour / step) * step));
+    appState.endHour = Math.max(MIN_HOUR, Math.min(MAX_HOUR, Math.round(appState.endHour / step) * step));
+    if (appState.endHour < appState.startHour) appState.endHour = appState.startHour;
+    appState.selectedSeatId = null;
+
+    els.actionBar?.classList.remove('visible');
+
+    // Reload image and config
+    await fetchImageWithCache(currentSite.mapSrc);
+    mapBaseHeight = 1600 * (mapImage.naturalHeight / mapImage.naturalWidth);
+    centerMap();
+
+    await loadConfig();
+    updateSliderUI();
+    loadData();
+    requestRender();
+}
+
 function clampMap() {
     const viewW = els.viewport.clientWidth;
     const viewH = els.viewport.clientHeight;
@@ -568,9 +720,11 @@ function updateTimeMarker() {
     
     if (els.dp.value === localToday) {
         const dec = now.getHours() + (now.getMinutes() / 60); 
-        const start = MIN_HOUR + 0.5;
-        if (dec >= start && dec <= (MAX_HOUR + 0.5)) { 
-            els.nowMarker.style.left = (((dec - start) / (MAX_HOUR - MIN_HOUR)) * 100) + '%'; 
+        const isSun = isDateSunday(els.dp.value);
+        const start = currentSite.slug === 'bua-st-serge' ? (isSun ? MIN_HOUR : MIN_HOUR + 0.5) : MIN_HOUR;
+        const end = currentSite.slug === 'bua-st-serge' ? (isSun ? MAX_HOUR + 0.5 : MAX_HOUR + 0.5) : MAX_HOUR;
+        if (dec >= start && dec <= end) { 
+            els.nowMarker.style.left = (((dec - start) / (end - start)) * 100) + '%'; 
             els.nowMarker.style.display = 'block'; 
             return; 
         }
@@ -722,7 +876,7 @@ async function loadData(force = false, retryCount = 0) {
     
     try {
         const forceParam = force ? '&force=true' : '';
-        const url = `${API_BASE_URL}/api/load_day?date=${encodeURIComponent(els.dp.value)}${forceParam}`;
+        const url = `${API_BASE_URL}/api/load_day?site=${currentSite.slug}&date=${encodeURIComponent(els.dp.value)}${forceParam}`;
         const res = await fetch(url);
         if (res.status === 503) {
             if (retryCount < 3) {
@@ -761,18 +915,37 @@ function updateMapState() {
     const s = Math.min(appState.startHour, appState.endHour);
     const e = Math.max(appState.startHour, appState.endHour);
     const reqSlots = [];
+    const step = currentSite.step || 1;
     
-    if (s === e) reqSlots.push(formatTime(s, isSunday));
-    else for (let h = s; h < e; h++) reqSlots.push(formatTime(h, isSunday));
+    if (s === e) {
+        const slotTime = (s >= MAX_HOUR) ? Math.max(MIN_HOUR, s - step) : s;
+        reqSlots.push(formatTime(slotTime, isSunday));
+    } else {
+        for (let t = s; t < e - 0.01; t += step) {
+            const cleanT = Math.round(t * 100) / 100;
+            reqSlots.push(formatTime(cleanT, isSunday));
+        }
+    }
 
     SEATS.forEach(seat => {
         const d = AVAILABILITY[seat.id];
         const gD = AVAILABILITY[seat.boxStartId];
         
-        if (gD) { seat.hasPlug = !!gD.hasPlug; seat.hasLight = !!gD.hasLight; }
         if (d) {
+            seat.hasPlug = !!d.hasPlug;
+            seat.hasLight = !!d.hasLight;
+            seat.isComputer = !!d.isComputer;
+            seat.isGroup = !!d.isGroup;
+            seat.capacity = d.capacity || 1;
             const isFree = reqSlots.length > 0 && reqSlots.every(r => d.slots.includes(r));
             seat.state = isFree ? 'free' : 'busy';
+        } else if (gD) {
+            seat.hasPlug = !!gD.hasPlug;
+            seat.hasLight = !!gD.hasLight;
+            seat.isComputer = !!gD.isComputer;
+            seat.isGroup = !!gD.isGroup;
+            seat.capacity = gD.capacity || 1;
+            seat.state = 'unknown';
         } else {
             seat.state = 'unknown';
         }
@@ -887,6 +1060,15 @@ function draw() {
         ctx.roundRect(s.x + scaleOffset, s.y + scaleOffset, s.w - (scaleOffset*2), s.h - (scaleOffset*2), 2);
         ctx.fill();
         ctx.stroke();
+
+        if (s.id.toString().startsWith("Carrel") && s.state !== 'skeleton') {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const shortLabel = s.id.replace('Carrel ', 'C');
+            ctx.fillText(shortLabel, s.x + s.w / 2, s.y + s.h / 2);
+        }
     });
 }
 
@@ -1067,16 +1249,23 @@ function setupPointerEvents() {
     canvas.addEventListener('pointercancel', handleUp);
 }
 
-function formatTime(h, isSun) { return (h<10?'0'+h:h) + (isSun?':00':':30'); }
+function formatTime(h, isSun) {
+    if (currentSite.slug === 'bua-provisoire-belle-beille') {
+        const hour = Math.floor(h);
+        const mins = Math.round((h - hour) * 60);
+        return (hour < 10 ? '0' + hour : hour) + ':' + (mins < 10 ? '0' + mins : mins);
+    }
+    return (h < 10 ? '0' + h : h) + (isSun ? ':00' : ':30');
+}
 function showToast(msg, err) { els.toast.innerText = msg; els.toast.style.background = err ? '#ef4444' : '#22c55e'; els.toast.classList.add('visible'); setTimeout(() => els.toast.classList.remove('visible'), 4000); }
 function openBooking(num) {
     recordBookingDay();
     const d = AVAILABILITY[num];
     if (!d) return;
-    const typeId = encodeURIComponent(d.typeId || "245");
+    const typeId = encodeURIComponent(d.typeId || currentSite.defaultTypeId || "245");
     const dateVal = encodeURIComponent(els.dp.value);
     const resId = encodeURIComponent(d.resourceId || num);
-    window.open(`https://affluences.com/fr/sites/${SITE_SLUG}/reservation?type=${typeId}&date=${dateVal}&resource=${resId}`, '_blank', 'noopener,noreferrer');
+    window.open(`https://affluences.com/fr/sites/${currentSite.slug}/reservation?type=${typeId}&date=${dateVal}&resource=${resId}`, '_blank', 'noopener,noreferrer');
 }
 
 function updateSliderUI() {
@@ -1093,7 +1282,12 @@ function updateSliderUI() {
 
 function setupSlider() {
     let activeThumb = null;
-    const getH = x => { const r = els.slider.getBoundingClientRect(); return Math.round(MIN_HOUR + Math.max(0, Math.min(1, (x - r.left)/r.width)) * (MAX_HOUR - MIN_HOUR)); };
+    const getH = x => {
+        const r = els.slider.getBoundingClientRect();
+        const raw = MIN_HOUR + Math.max(0, Math.min(1, (x - r.left)/r.width)) * (MAX_HOUR - MIN_HOUR);
+        const step = currentSite.step || 1;
+        return Math.round(raw / step) * step;
+    };
     const move = e => { if(!activeThumb) return; const h = getH(e.clientX); if(activeThumb === 'S') appState.startHour = h; else appState.endHour = h; updateSliderUI(); };
     const up = e => { activeThumb = null; els.slider.releasePointerCapture(e.pointerId); els.slider.removeEventListener('pointermove', move); els.slider.removeEventListener('pointerup', up); els.slider.removeEventListener('pointercancel', up); };
     
