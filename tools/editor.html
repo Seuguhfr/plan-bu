@@ -470,18 +470,18 @@
     <script>
         // Preset configurations
         const BELLE_BEILLE_INITIAL_SEATS = {
-            "100-107": { "x": "12.372", "y": "44.435", "w": "3.592", "h": "12.621", "layout": "double", "direction": "vertical", "start": 100, "end": 107 },
-            "108-115": { "x": "19.555", "y": "44.435", "w": "3.592", "h": "12.621", "layout": "double", "direction": "vertical", "start": 108, "end": 115 },
-            "116-123": { "x": "26.853", "y": "44.435", "w": "3.592", "h": "12.621", "layout": "double", "direction": "vertical", "start": 116, "end": 123 },
-            "124-131": { "x": "34.065", "y": "44.435", "w": "3.592", "h": "12.621", "layout": "double", "direction": "vertical", "start": 124, "end": 131 },
-            "Carrel 2.1": { "x": "63.838", "y": "49.454", "w": "6.198", "h": "7.145", "layout": "single", "direction": "horizontal", "id": "Carrel 2.1", "label": "Carrel 2.1 (4 pl.)" },
-            "Carrel 2.2": { "x": "63.816", "y": "58.815", "w": "6.167", "h": "7.114", "layout": "single", "direction": "horizontal", "id": "Carrel 2.2", "label": "Carrel 2.2 (4 pl.)" },
-            "Carrel 3.1": { "x": "70.466", "y": "49.583", "w": "6.172", "h": "7.086", "layout": "single", "direction": "horizontal", "id": "Carrel 3.1", "label": "Carrel 3.1 (4 pl.)" },
-            "Carrel 3.2": { "x": "70.466", "y": "58.711", "w": "6.156", "h": "7.189", "layout": "single", "direction": "horizontal", "id": "Carrel 3.2", "label": "Carrel 3.2 (4 pl.)" },
-            "200-203": { "x": "77.081", "y": "54.879", "w": "2.223", "h": "11.976", "layout": "single", "direction": "vertical", "start": 200, "end": 203 },
-            "204-207": { "x": "80.958", "y": "54.879", "w": "2.252", "h": "11.976", "layout": "single", "direction": "vertical", "start": 204, "end": 207 },
-            "208-213": { "x": "83.552", "y": "48.750", "w": "2.223", "h": "18.105", "layout": "single", "direction": "vertical", "start": 208, "end": 213 },
-            "214-221": { "x": "93.330", "y": "48.750", "w": "2.223", "h": "18.105", "layout": "single", "direction": "vertical", "start": 214, "end": 221 }
+            "100-107": { "x": "10.590", "y": "53.531", "w": "3.813", "h": "24.568", "layout": "double", "direction": "vertical", "start": 100, "end": 107 },
+            "108-115": { "x": "18.215", "y": "53.531", "w": "3.813", "h": "24.568", "layout": "double", "direction": "vertical", "start": 108, "end": 115 },
+            "116-123": { "x": "25.961", "y": "53.531", "w": "3.813", "h": "24.568", "layout": "double", "direction": "vertical", "start": 116, "end": 123 },
+            "124-131": { "x": "33.616", "y": "53.531", "w": "3.813", "h": "24.568", "layout": "double", "direction": "vertical", "start": 124, "end": 131 },
+            "Carrel 2.1": { "x": "65.217", "y": "63.301", "w": "6.579", "h": "13.909", "layout": "single", "direction": "horizontal", "id": "Carrel 2.1", "label": "Carrel 2.1 (4 pl.)" },
+            "Carrel 2.2": { "x": "65.194", "y": "81.524", "w": "6.546", "h": "13.848", "layout": "single", "direction": "horizontal", "id": "Carrel 2.2", "label": "Carrel 2.2 (4 pl.)" },
+            "Carrel 3.1": { "x": "72.253", "y": "63.552", "w": "6.551", "h": "13.794", "layout": "single", "direction": "horizontal", "id": "Carrel 3.1", "label": "Carrel 3.1 (4 pl.)" },
+            "Carrel 3.2": { "x": "72.253", "y": "81.321", "w": "6.534", "h": "13.994", "layout": "single", "direction": "horizontal", "id": "Carrel 3.2", "label": "Carrel 3.2 (4 pl.)" },
+            "200-203": { "x": "79.274", "y": "73.862", "w": "2.360", "h": "23.313", "layout": "single", "direction": "vertical", "start": 200, "end": 203 },
+            "204-207": { "x": "83.389", "y": "73.862", "w": "2.390", "h": "23.313", "layout": "single", "direction": "vertical", "start": 204, "end": 207 },
+            "208-213": { "x": "86.142", "y": "61.931", "w": "2.360", "h": "35.244", "layout": "single", "direction": "vertical", "start": 208, "end": 213 },
+            "214-221": { "x": "96.521", "y": "61.931", "w": "2.360", "h": "35.244", "layout": "single", "direction": "vertical", "start": 214, "end": 221 }
         };
 
         const canvas = document.getElementById('editorCanvas');
@@ -508,7 +508,7 @@
         // Load Preset
         function loadPreset(preset) {
             if (preset === 'belle-beille') {
-                bgImage.src = '../frontend/assets/map-belle-beille.png';
+                bgImage.src = '../frontend/assets/map-belle-beille.webp';
                 boxes = JSON.parse(JSON.stringify(BELLE_BEILLE_INITIAL_SEATS));
             } else if (preset === 'st-serge') {
                 bgImage.src = '../frontend/assets/map.webp';
